@@ -1,0 +1,5 @@
+#[MASTER]
+#load-plugins=pylintplugins
+
+#[TYPECHECK]
+#ignored-modules=ldap,flask
