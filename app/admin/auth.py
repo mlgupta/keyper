@@ -9,6 +9,7 @@ from . import admin
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
 from ..utils.extensions import *
+from ..admin.users import search_users
 
 @admin.route('/login', methods=['POST'])
 def login():
@@ -45,24 +46,23 @@ def login():
         try:
             con = operations.open_ldap_connection()
 
-            base_dn = app.config["LDAP_BASEUSER"]
-            attrs = ['dn','cn','memberOf']
             searchFilter = '(&(objectClass=*)(cn=' + username + '))'
 
-            app.logger.debug("Getting User role")
-
-            result = con.search_s(base_dn,ldap.SCOPE_ONELEVEL,searchFilter, attrs)
-
-            for dn, entry in result:
-                memberOfs = []
-                user_role = 'keyper_user'
-
-                if ("memberOf" in entry):
-                    for memberOf in entry.get("memberOf"):
-                        if 'keyperadmin' in memberOf.decode().lower():
-                            user_role = 'keyper_admin'
-
+            list = search_users(con, searchFilter)
+            app.logger.debug("list length: " + str(len(list)))
             operations.close_ldap_connection(con)
+
+            user = list.pop()
+
+            app.logger.debug("Getting User role")
+            user_role = 'keyper_user'
+            if ("memberOf" in user):
+                memberOfs = user["memberOf"]
+                for memberOf in entry.get("memberOf"):
+                    if 'keyperadmin' in memberOf.decode().lower():
+                        user_role = 'keyper_admin'
+                
+            app.logger.debug("User role: " + user_role)
 
             role = "{role: " + user_role + "}"
             app.logger.debug("role:" + role)
@@ -71,10 +71,10 @@ def login():
             access_token = create_access_token(identity=username, user_claims=role)
             refresh_token = create_refresh_token(identity=username, user_claims=role)
 
-            return_message = {
-                'access_token': access_token,
-                'refresh_token': refresh_token
-            }
+            user["access_token"] = access_token
+            user["refresh_token"] = refresh_token
+
+            return_message = user
             return_code = 200
         except ldap.NO_SUCH_OBJECT:
             app.logger.error("Unable to delete. LDAP Entry not found:" + dn)

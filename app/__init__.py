@@ -4,16 +4,16 @@ import json
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
 from .resources.errors import KeyperError
-from .utils.extensions import jwt
-
-
+from .utils.extensions import jwt, logs
 
 def create_app():
     ''' Create app '''
     app = Flask(__name__)
     app.config.from_object("config.DevelopmentConfig")
-    log_level = logging.DEBUG
-    app.logger.setLevel(log_level)
+    #log_level = logging.DEBUG
+    #app.logger.setLevel(log_level)
+
+    logs.init_app(app)
 
     jwt.init_app(app)
 

@@ -14,6 +14,9 @@ class Config(object):
 
     JWT_SECRET_KEY = 'super-duper-secret'
 
+    LOG_TYPE = 'stream'
+    LOG_LEVEL = 'INFO'
+
 
 class ProductionConfig(Config):
     pass

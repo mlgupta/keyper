@@ -5,9 +5,11 @@ from flask_jwt_extended import JWTManager, get_jwt_identity, get_jwt_claims
 from flask import current_app as app
 from flask import request
 from ..resources.errors import KeyperError, errors
+from .flask_logs import LogSetup
 
 
 jwt = JWTManager()
+logs = LogSetup()
 
 blacklist = set()
 
@@ -34,7 +36,7 @@ def user_load_callback(user_claims):
     app.logger.debug("user_claims: " + user_claims)
 
     if not KEYPER_ADMIN in user_claims:
-        allowed_url = "/" + user
+        allowed_url = "/users/" + user
         url = request.path
         app.logger.debug("url: " + url)
 
