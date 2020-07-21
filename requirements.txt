@@ -3,12 +3,14 @@ astroid==2.4.2
 click==7.1.2
 Flask==1.1.2
 Flask-JWT-Extended==3.24.1
+flask-marshmallow==0.13.0
 Flask-RESTful==0.3.8
 isort==4.3.21
 itsdangerous==1.1.0
 Jinja2==2.11.2
 lazy-object-proxy==1.4.3
 MarkupSafe==1.1.1
+marshmallow==3.7.1
 mccabe==0.6.1
 pyasn1==0.4.8
 pyasn1-modules==0.2.8

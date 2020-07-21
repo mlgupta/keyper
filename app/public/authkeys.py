@@ -1,8 +1,11 @@
 ''' API to get user's SSH Public Keys '''
 import sys
+import json
 import ldap
 from flask import request, Response
 from flask import current_app as app
+from marshmallow import fields, Schema
+from marshmallow.validate import Length
 from . import public
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
@@ -11,6 +14,14 @@ from ..utils import operations
 def get_authkeys():
     ''' Get SSH Public Keys '''
     app.logger.debug("Enter")
+
+    req = request.args
+
+    err = authkey_schema.validate(req)
+    if err:
+        app.logger.error("Input Data validation error.")
+        app.logger.error("Errors:" + json.dumps(err))
+        raise KeyperError(errors["SchemaValidationError"].get("message"), errors["SchemaValidationError"].get("status"))
 
     username = request.args.get('username')
     host = request.args.get('host')
@@ -64,4 +75,11 @@ def getSSHPublicKeys(con, username):
 
     return sshPublicKeys
 
+class AuthKeySchema(Schema):
+    username = fields.Str(required=True, validate=Length(max=100))
+    host = fields.Str(required=True, validate=Length(max=100))
 
+    class Meta:
+        fields = ("username", "host")
+
+authkey_schema = AuthKeySchema()

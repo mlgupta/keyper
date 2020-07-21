@@ -4,7 +4,7 @@ import json
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
 from .resources.errors import KeyperError
-from .utils.extensions import jwt, logs
+from .utils.extensions import jwt, logs, ma
 
 def create_app():
     ''' Create app '''
@@ -16,6 +16,8 @@ def create_app():
     logs.init_app(app)
 
     jwt.init_app(app)
+
+    ma.init_app(app)
 
     from .admin import admin as admin_blueprint
     app.register_blueprint(admin_blueprint)

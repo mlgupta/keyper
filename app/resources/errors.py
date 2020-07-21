@@ -22,7 +22,7 @@ errors = {
         "status": 500
     },
      "SchemaValidationError": {
-         "message": "Request is missing required fields",
+         "message": "Request is missing required fields or error in fields",
          "status": 400
      },
      "ObjectExistsError": {

@@ -1,10 +1,12 @@
 ''' Authentication module '''
 import sys
+import json
 import ldap
-import ldap.modlist as modlist
 from flask import request, jsonify
 from flask import current_app as app
 from flask_jwt_extended import create_access_token, create_refresh_token, get_raw_jwt, jwt_required, jwt_refresh_token_required
+from marshmallow import fields, Schema
+from marshmallow.validate import Length
 from . import admin
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
@@ -16,8 +18,16 @@ def login():
     ''' Login '''
     app.logger.debug("Enter")
 
-    username = request.json.get('username', None)
-    password = request.json.get('password', None)
+    req = request.get_json
+
+    err = login_schema.validate(req)
+    if err:
+        app.logger.error("Input Data validation error.")
+        app.logger.error("Errors:" + json.dumps(err))
+        raise KeyperError(errors["SchemaValidationError"].get("message"), errors["SchemaValidationError"].get("status"))
+
+    username = req['username']
+    password = req['password']
 
     app.logger.debug("username/password:" + username + "/" + password)
 
@@ -56,10 +66,11 @@ def login():
 
             app.logger.debug("Getting User role")
             user_role = 'keyper_user'
-            if ("memberOf" in user):
-                memberOfs = user["memberOf"]
-                for memberOf in entry.get("memberOf"):
-                    if 'keyperadmin' in memberOf.decode().lower():
+            if ("memberOfs" in user):
+                memberOfs = user["memberOfs"]
+                for memberOf in memberOfs:
+                    app.logger.debug("memberOf: " + memberOf)
+                    if 'keyperadmins' in memberOf.lower():
                         user_role = 'keyper_admin'
                 
             app.logger.debug("User role: " + user_role)
@@ -93,18 +104,17 @@ def login():
 def refresh():
     ''' Refreshes JWT token using refresh token '''
     app.logger.debug("Enter")
-    current_user = get_jwt_identity
-    user_claims = get_jwt_claims
-    access_token = create_access_token(identity=username, user_claims=role)
+    current_user = get_jwt_identity()
+    user_claims = get_jwt_claims()
+    app.logger.debug("username: " + current_user)
+    app.logger.debug("user_claims: " + user_claims)
+    access_token = create_access_token(identity=current_user, user_claims=user_claims)
     return_code = 200
     return_message = { 
         'access_token': access_token
     }
     app.logger.debug("Exit")
     return jsonify(return_message), return_code
-
-
-
 
 @admin.route('/logout', methods=['DELETE'])
 @jwt_required
@@ -118,3 +128,12 @@ def logout():
     app.logger.debug("Exit")
 
     return jsonify({"msg": "Successfully logged out"}), 200
+
+class LoginSchema(Schema):
+    username = fields.Str(required=True, validate=Length(max=100))
+    username = fields.Str(required=True, validate=Length(max=100))
+
+    class Meta:
+        fields = ("username", "password")
+
+login_schema = LoginSchema()

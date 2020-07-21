@@ -4,12 +4,14 @@ from functools import wraps
 from flask_jwt_extended import JWTManager, get_jwt_identity, get_jwt_claims
 from flask import current_app as app
 from flask import request
+from flask_marshmallow import Marshmallow
 from ..resources.errors import KeyperError, errors
 from .flask_logs import LogSetup
 
 
 jwt = JWTManager()
 logs = LogSetup()
+ma = Marshmallow()
 
 blacklist = set()
 

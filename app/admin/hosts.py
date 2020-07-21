@@ -1,10 +1,13 @@
 ''' REST API for hosts '''
 import sys
+import json
 import ldap
 import ldap.modlist as modlist
 from flask import request, jsonify
 from flask import current_app as app
 from flask_jwt_extended import jwt_required
+from marshmallow import fields, Schema
+from marshmallow.validate import Length
 from . import admin
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
@@ -45,6 +48,13 @@ def create_host():
     ''' Create a Host '''
     app.logger.debug("Enter")
     req = request.get_json()
+
+    err = host_create_schema.validate(req)
+    if err:
+        app.logger.error("Input Data validation error.")
+        app.logger.error("Errors:" + json.dumps(err))
+        raise KeyperError(errors["SchemaValidationError"].get("message"), errors["SchemaValidationError"].get("status"))
+
     app.logger.debug(req)
 
     attrs = {}
@@ -58,12 +68,23 @@ def create_host():
         attrs["owner"] = owners
 
     dn = "cn=" + req["cn"] + "," + app.config["LDAP_BASEHOST"]
+    group_dn = "cn=" + req["cn"] + "," + app.config["LDAP_BASEGROUPS"]
 
     try:
         con = operations.open_ldap_connection()
         ldif = modlist.addModlist(attrs)
-        app.logger.debug("DN:" + dn)
+        app.logger.debug("Adding User with DN:" + dn)
         con.add_s(dn, ldif)
+
+        attrs={}
+        attrs['objectClass'] = [b'groupOfNames',b'top']
+        attrs["cn"] = [req["cn"].encode()]
+        attrs["member"] = [dn.encode()]
+        app.logger.debug("Adding Group with DN:" + group_dn)
+
+        ldif_group = modlist.addModlist(attrs)
+        con.add_s(group_dn, ldif_group)
+
         operations.close_ldap_connection(con)
     except ldap.ALREADY_EXISTS:
         app.logger.error("LDAP Entry already exists:" + dn)
@@ -86,6 +107,12 @@ def update_host(hostname):
 
     req = request.get_json()
     app.logger.debug(req)
+
+    err = host_update_schema.validate(req)
+    if err:
+        app.logger.error("Input Data validation error.")
+        app.logger.error("Errors:" + json.dumps(err))
+        raise KeyperError(errors["SchemaValidationError"].get("message"), errors["SchemaValidationError"].get("status"))
 
     mod_list = []
 
@@ -118,10 +145,14 @@ def delete_host(hostname):
     ''' Delete a Host '''
     app.logger.debug("Enter")
     dn = "cn=" + hostname + "," + app.config["LDAP_BASEHOST"]
+    group_dn = "cn=" + hostname + "," + app.config["LDAP_BASEGROUPS"]
 
     try:
         con = operations.open_ldap_connection()
+        app.logger.debug("Deleting Hosts: " + dn)
         con.delete_s(dn)
+        app.logger.debug("Deleting Group: " + group_dn)
+        con.delete_s(group_dn)
         operations.close_ldap_connection(con)
     except ldap.NO_SUCH_OBJECT:
         app.logger.error("Unable to delete. LDAP Entry not found:" + dn)
@@ -170,4 +201,16 @@ def searchHosts(con, searchFilter):
 
     return list
 
+class HostCreateSchema(Schema):
+    cn = fields.Str(required=True, validate=Length(max=100))
+    owners = fields.List(fields.Str(validate=Length(max=200)), required=False)
+
+    class Meta:
+        fields = ("cn", "owners")
+
+class HostUpdateSchema(Schema):
+    owners = fields.List(fields.Str(validate=Length(max=200)), required=True)
+
+host_create_schema = HostCreateSchema()
+host_update_schema = HostUpdateSchema()
 

@@ -1,10 +1,13 @@
 ''' REST API for groups '''
 import sys
+import json
 import ldap
 import ldap.modlist as modlist
 from flask import request, jsonify
 from flask import current_app as app
 from flask_jwt_extended import jwt_required
+from marshmallow import fields, Schema
+from marshmallow.validate import Length
 from . import admin
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
@@ -45,6 +48,13 @@ def create_group():
     ''' Create a Group '''
     app.logger.debug("Enter")
     req = request.get_json()
+
+    err = group_create_schema.validate(req)
+    if err:
+        app.logger.error("Input Data validation error.")
+        app.logger.error("Errors:" + json.dumps(err))
+        raise KeyperError(errors["SchemaValidationError"].get("message"), errors["SchemaValidationError"].get("status"))
+
     app.logger.debug(req)
 
     attrs = {}
@@ -85,6 +95,13 @@ def update_group(groupname):
     dn = "cn=" + groupname + "," + app.config["LDAP_BASEGROUPS"]
 
     req = request.get_json()
+
+    err = group_update_schema.validate(req)
+    if err:
+        app.logger.error("Input Data validation error.")
+        app.logger.error("Errors:" + json.dumps(err))
+        raise KeyperError(errors["SchemaValidationError"].get("message"), errors["SchemaValidationError"].get("status"))
+
     app.logger.debug(req)
 
     mod_list = []
@@ -170,4 +187,15 @@ def searchGroups(con, searchFilter):
 
     return list
 
+class GroupCreateSchema(Schema):
+    cn = fields.Str(required=True, validate=Length(max=100))
+    members = fields.List(fields.Str(validate=Length(max=200)), required=False)
 
+    class Meta:
+        fields = ("cn", "members")
+
+class GroupUpdateSchema(Schema):
+    members = fields.List(fields.Str(validate=Length(max=200)), required=True)
+
+group_create_schema = GroupCreateSchema()
+group_update_schema = GroupUpdateSchema()

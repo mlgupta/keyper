@@ -15,13 +15,15 @@ class Config(object):
     JWT_SECRET_KEY = 'super-duper-secret'
 
     LOG_TYPE = 'stream'
-    LOG_LEVEL = 'INFO'
+    LOG_LEVEL = 'DEBUG'
 
 
 class ProductionConfig(Config):
     pass
 
 class DevelopmentConfig(Config):
+    LDAP_USER = "cn=manish,ou=people,dc=dbsentry,dc=com"
+    LDAP_PASSWD = "success."
     DEBUG = True
 
 class TestingConfig(Config):
