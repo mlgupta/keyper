@@ -18,7 +18,7 @@ def login():
     ''' Login '''
     app.logger.debug("Enter")
 
-    req = request.get_json
+    req = request.get_json()
 
     err = login_schema.validate(req)
     if err:
@@ -129,9 +129,19 @@ def logout():
 
     return jsonify({"msg": "Successfully logged out"}), 200
 
+@admin.route('/check_jwt_token', methods=['GET'])
+@jwt_required
+def check_token_freshness():
+    ''' Checks JWT Token Freshness '''
+    app.logger.debug("Enter")
+
+    app.logger.debug("Exit")
+
+    return jsonify({"msg": "Token Valid"}), 200
+
 class LoginSchema(Schema):
     username = fields.Str(required=True, validate=Length(max=100))
-    username = fields.Str(required=True, validate=Length(max=100))
+    password = fields.Str(required=True, validate=Length(max=100))
 
     class Meta:
         fields = ("username", "password")

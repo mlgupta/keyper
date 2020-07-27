@@ -3,9 +3,6 @@ import sys
 import os
 import json
 import ldap
-import hashlib
-from base64 import encodestring as encode
-from base64 import decodestring as decode
 import ldap.modlist as modlist
 from time import strftime,gmtime
 from flask import request, jsonify
@@ -328,8 +325,8 @@ def get_generalized_time():
 class UserCreateSchema(Schema):
     cn = fields.Str(required=True, validate=Length(max=100))
     userPassword = fields.Str(required=True, validate=Length(max=100))
-    givenName = fields.Str(required=False, validate=Length(max=100))
-    sn = fields.Str(required=False, validate=Length(max=100))
+    givenName = fields.Str(required=True, validate=Length(max=100))
+    sn = fields.Str(required=True, validate=Length(max=100))
     displayName = fields.Str(required=False, validate=Length(max=100))
     mail = fields.Email(required=False, validate=Length(max=100))
     accountLocked = fields.Bool(required=False)

@@ -9,6 +9,7 @@ from marshmallow.validate import Length
 from . import public
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
+from ..admin.users import search_users
 
 @public.route('/authkeys', methods=['GET'])
 def get_authkeys():
@@ -31,8 +32,16 @@ def get_authkeys():
 
     con = operations.open_ldap_connection()
 
-    if (isUsernameAuthorized(con, username, host)):
-        sshPublicKeys = getSSHPublicKeys(con, username)
+    user = {}
+    user = search_users(con,'(&(objectClass=*)(cn=' + username + '))').pop()
+
+    if not ("cn" in user):
+        raise KeyperError(errors["UnauthorizedAccessError"].get("message"), errors["UnauthorizedAccessError"].get("status"))
+
+    if (isUserAuthorized(con, user, host)):
+        sshPublicKeys = getSSHPublicKeys(user)
+    else:
+        raise KeyperError(errors["UnauthorizedAccessError"].get("message"), errors["UnauthorizedAccessError"].get("status"))
 
     for sshPublicKey in sshPublicKeys:
         result = sshPublicKey + "\n"
@@ -43,34 +52,48 @@ def get_authkeys():
     return Response(result, mimetype='text/plain')
 
 
-def isUsernameAuthorized(con, username, host):
-    app.logger.debug("Enter")
-    app.logger.debug("Exit")
-
-    return True
-
-def getSSHPublicKeys(con, username):
+def isUserAuthorized(con, user, host):
     app.logger.debug("Enter")
 
-    base_dn = app.config["LDAP_BASEUSER"]
-    attrs = ['dn','cn','sshPublicKey']
-    searchFilter = '(&(objectClass=*)(cn=' + username + '))'
+    return_flag = False
+
+    user_dn = user["dn"]
+    host_dn = "cn=" + host + "," + app.config["LDAP_BASEHOST"]
+    base_dn = app.config["LDAP_BASEGROUPS"]
+    searchFilter = "(|(&(objectClass=groupOfNames)(member=" + user_dn + ")(cn=Admins))(&(objectClass=groupOfNames)(member=" + user_dn + ")(member=" + host_dn + ")))"
+    app.logger.debug("seachFilter:" + searchFilter)
+    attrs = ['dn','cn']
+
+    if "pwdAccountLockedTime" in user:
+        app.logger.debug("Account is locked for user: " + user_dn)
+        return_flag = False
 
     try:
         result = con.search_s(base_dn,ldap.SCOPE_ONELEVEL,searchFilter, attrs)
 
-        for dn, entry in result:
-            sshPublicKeys = []
+        app.logger.debug("Search Result length: " + str(len(result)))
 
-            if ("sshPublicKey" in entry):
-                for sshPublicKey in entry.get("sshPublicKey"):
-                    sshPublicKeys.append(sshPublicKey.decode())
-
+        if (len(result) > 0):
+            return_flag = True
     except ldap.LDAPError:
         exctype, value = sys.exc_info()[:2]
         app.logger.error("LDAP Exception " + str(exctype) + " " + str(value))
         raise KeyperError("LDAP Exception " + str(exctype) + " " + str(value),401)
 
+    app.logger.debug("Exit")
+
+    return True
+
+def getSSHPublicKeys(user):
+    app.logger.debug("Enter")
+
+    sshPublicKeys = []
+
+    if ("sshPublicKeys" in user):
+        for sshPublicKey in user["sshPublicKeys"]:
+            sshPublicKeys.append(sshPublicKey)
+
+    app.logger.debug("Keys returned: " + str(len(sshPublicKeys)))
     app.logger.debug("Exit")
 
     return sshPublicKeys

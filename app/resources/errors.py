@@ -48,5 +48,9 @@ errors = {
      "UnauthorizedAccessError": {
          "message": "Not Authorized to Access this resource",
          "status": 401
+     },
+     "TokenExpiredError": {
+         "message": "Token Expired",
+         "status": 401
      }
 }
