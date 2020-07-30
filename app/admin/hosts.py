@@ -170,7 +170,7 @@ def searchHosts(con, searchFilter):
     app.logger.debug("Enter")
 
     base_dn = app.config["LDAP_BASEHOST"]
-    attrs = ['dn','cn','owner']
+    attrs = ['dn','cn','owner','memberOf']
 
     try:
         result = con.search_s(base_dn,ldap.SCOPE_ONELEVEL,searchFilter, attrs)
@@ -181,6 +181,7 @@ def searchHosts(con, searchFilter):
             host = {}
             host["dn"] = dn
             owners = []
+            memberOfs = []
 
             if ("cn" in entry):
                 for i in entry.get("cn"):
@@ -190,6 +191,10 @@ def searchHosts(con, searchFilter):
                 for owner in entry.get("owner"):
                     owners.append(owner.decode())
                     host["owners"] = owners
+            if ("memberOf" in entry):
+                for memberOf in entry.get("memberOf"):
+                    memberOfs.append(memberOf.decode())
+                host["memberOfs"] = memberOfs
 
             list.append(host)
     except ldap.LDAPError:

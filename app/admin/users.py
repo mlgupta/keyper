@@ -314,6 +314,13 @@ def search_users(con, searchFilter):
 
     return list
 
+def cn_from_dn(memberOf):
+    ''' Return cn from DN '''
+    app.logger.debug("Enter")
+    cn = memberOf.split(",")[0].split("=")[1]
+    app.logger.debug("Exit")
+    return cn
+
 def get_generalized_time():
     ''' Return generized time as string '''
     app.logger.debug("Enter")
