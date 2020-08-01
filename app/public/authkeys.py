@@ -22,7 +22,7 @@ def get_authkeys():
     if err:
         app.logger.error("Input Data validation error.")
         app.logger.error("Errors:" + json.dumps(err))
-        raise KeyperError(errors["SchemaValidationError"].get("message"), errors["SchemaValidationError"].get("status"))
+        raise KeyperError(errors["SchemaValidationError"].get("msg"), errors["SchemaValidationError"].get("status"))
 
     username = request.args.get('username')
     host = request.args.get('host')
@@ -36,12 +36,12 @@ def get_authkeys():
     user = search_users(con,'(&(objectClass=*)(cn=' + username + '))').pop()
 
     if not ("cn" in user):
-        raise KeyperError(errors["UnauthorizedAccessError"].get("message"), errors["UnauthorizedAccessError"].get("status"))
+        raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
 
     if (isUserAuthorized(con, user, host)):
         sshPublicKeys = getSSHPublicKeys(user)
     else:
-        raise KeyperError(errors["UnauthorizedAccessError"].get("message"), errors["UnauthorizedAccessError"].get("status"))
+        raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
 
     for sshPublicKey in sshPublicKeys:
         result = sshPublicKey + "\n"

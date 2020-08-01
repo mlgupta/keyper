@@ -18,7 +18,7 @@ class LDAPConnection:
             app.logger.debug("Exit")
         except ldap.INVALID_CREDENTIALS:
             app.logger.error("Authentication failure. Invalid Credentials")
-            raise KeyperError(errors["UnauthorizedError"].get("message"), errors["UnauthorizedError"].get("status"))
+            raise KeyperError(errors["UnauthorizedError"].get("msg"), errors["UnauthorizedError"].get("status"))
         except ldap.LDAPError as e:
             exctype, value = sys.exc_info()[:2]
             app.logger.error("LDAP Exception " + str(exctype) + " " + str(value))

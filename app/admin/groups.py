@@ -53,7 +53,7 @@ def create_group():
     if err:
         app.logger.error("Input Data validation error.")
         app.logger.error("Errors:" + json.dumps(err))
-        raise KeyperError(errors["SchemaValidationError"].get("message"), errors["SchemaValidationError"].get("status"))
+        raise KeyperError(errors["SchemaValidationError"].get("msg"), errors["SchemaValidationError"].get("status"))
 
     app.logger.debug(req)
 
@@ -77,7 +77,7 @@ def create_group():
         operations.close_ldap_connection(con)
     except ldap.ALREADY_EXISTS:
         app.logger.error("LDAP Entry already exists:" + dn)
-        raise KeyperError(errors["ObjectExistsError"].get("message"), errors["ObjectExistsError"].get("status"))
+        raise KeyperError(errors["ObjectExistsError"].get("msg"), errors["ObjectExistsError"].get("status"))
     except ldap.LDAPError:
         exctype, value = sys.exc_info()[:2]
         app.logger.error("LDAP Exception " + str(exctype) + " " + str(value))
@@ -100,7 +100,7 @@ def update_group(groupname):
     if err:
         app.logger.error("Input Data validation error.")
         app.logger.error("Errors:" + json.dumps(err))
-        raise KeyperError(errors["SchemaValidationError"].get("message"), errors["SchemaValidationError"].get("status"))
+        raise KeyperError(errors["SchemaValidationError"].get("msg"), errors["SchemaValidationError"].get("status"))
 
     app.logger.debug(req)
 
@@ -118,7 +118,7 @@ def update_group(groupname):
         operations.close_ldap_connection(con)
     except ldap.NO_SUCH_OBJECT:
         app.logger.error("Unable to delete. LDAP Entry not found:" + dn)
-        raise KeyperError(errors["ObjectDeleteError"].get("message"), errors["ObjectDeleteError"].get("status"))
+        raise KeyperError(errors["ObjectDeleteError"].get("msg"), errors["ObjectDeleteError"].get("status"))
     except ldap.LDAPError:
         exctype, value = sys.exc_info()[:2]
         app.logger.error("LDAP Exception " + str(exctype) + " " + str(value))
@@ -142,7 +142,7 @@ def delete_group(groupname):
         operations.close_ldap_connection(con)
     except ldap.NO_SUCH_OBJECT:
         app.logger.error("Unable to delete. LDAP Entry not found:" + dn)
-        raise KeyperError(errors["ObjectDeleteError"].get("message"), errors["ObjectDeleteError"].get("status"))
+        raise KeyperError(errors["ObjectDeleteError"].get("msg"), errors["ObjectDeleteError"].get("status"))
     except ldap.LDAPError:
         exctype, value = sys.exc_info()[:2]
         app.logger.error("LDAP Exception " + str(exctype) + " " + str(value))

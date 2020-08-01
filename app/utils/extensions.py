@@ -68,7 +68,7 @@ def requires_keyper_admin():
 
             if not KEYPER_ADMIN in user_claims:
                 app.logger.debug("user not authorized")
-                raise KeyperError(errors["UnauthorizedAccessError"].get("message"), errors["UnauthorizedAccessError"].get("status"))
+                raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
             return f(*args, **kwargs)
         return decorated_function
     return decorator

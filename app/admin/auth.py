@@ -24,7 +24,7 @@ def login():
     if err:
         app.logger.error("Input Data validation error.")
         app.logger.error("Errors:" + json.dumps(err))
-        raise KeyperError(errors["SchemaValidationError"].get("message"), errors["SchemaValidationError"].get("status"))
+        raise KeyperError(errors["SchemaValidationError"].get("msg"), errors["SchemaValidationError"].get("status"))
 
     username = req['username']
     password = req['password']
@@ -45,8 +45,10 @@ def login():
         app.logger.debug("User Authenticated")
     except ldap.INVALID_CREDENTIALS:
         app.logger.error("Authentication failure. Invalid Credentials for user:" + username)
-        return_code = 401
-        return_message = "{msg: Bad Username or Password}"
+        #return_code = 401
+        #return_message = "{msg: Bad Username or Password}"
+        raise KeyperError(errors["UnauthorizedError"].get("msg"), errors["UnauthorizedError"].get("status"))
+
     except ldap.LDAPError:
         exctype, value = sys.exc_info()[:2]
         app.logger.error("LDAP Exception " + str(exctype) + " " + str(value))
@@ -89,7 +91,7 @@ def login():
             return_code = 200
         except ldap.NO_SUCH_OBJECT:
             app.logger.error("Unable to delete. LDAP Entry not found:" + dn)
-            raise KeyperError(errors["ObjectDeleteError"].get("message"), errors["ObjectDeleteError"].get("status"))
+            raise KeyperError(errors["ObjectDeleteError"].get("msg"), errors["ObjectDeleteError"].get("status"))
         except ldap.LDAPError:
             exctype, value = sys.exc_info()[:2]
             app.logger.error("LDAP Exception " + str(exctype) + " " + str(value))
