@@ -67,19 +67,25 @@ def create_host():
             owners.append(owner.encode())
         attrs["owner"] = owners
 
+    if ("description" in req):
+        attrs["description"] = [req.get("description").encode()]
+
     dn = "cn=" + req["cn"] + "," + app.config["LDAP_BASEHOST"]
     group_dn = "cn=" + req["cn"] + "," + app.config["LDAP_BASEGROUPS"]
 
     try:
         con = operations.open_ldap_connection()
         ldif = modlist.addModlist(attrs)
-        app.logger.debug("Adding User with DN:" + dn)
+        app.logger.debug("Adding Host with DN:" + dn)
         con.add_s(dn, ldif)
 
         attrs={}
         attrs['objectClass'] = [b'groupOfNames',b'top']
         attrs["cn"] = [req["cn"].encode()]
         attrs["member"] = [dn.encode()]
+        description = req["cn"] + " Autocreated Group"
+        attrs["description"] = [description.encode()]
+
         app.logger.debug("Adding Group with DN:" + group_dn)
 
         ldif_group = modlist.addModlist(attrs)
@@ -121,6 +127,9 @@ def update_host(hostname):
         for owner in req.get("owners"):
             owners.append(owner.encode())
         mod_list.append((ldap.MOD_REPLACE,"owner",owners))
+
+    if ("description" in req):
+        mod_list.append((ldap.MOD_REPLACE,"description",[req.get("description").encode()]))
 
     try:
         con = operations.open_ldap_connection()
@@ -170,7 +179,7 @@ def searchHosts(con, searchFilter):
     app.logger.debug("Enter")
 
     base_dn = app.config["LDAP_BASEHOST"]
-    attrs = ['dn','cn','owner','memberOf']
+    attrs = ['dn','cn','description','owner','memberOf']
 
     try:
         result = con.search_s(base_dn,ldap.SCOPE_ONELEVEL,searchFilter, attrs)
@@ -187,6 +196,10 @@ def searchHosts(con, searchFilter):
                 for i in entry.get("cn"):
                     cn = i.decode()
                     host["cn"] = cn
+            if ("description" in entry):
+                for i in entry.get("description"):
+                    description = i.decode()
+                    host["description"] = description
             if ("owner" in entry):
                 for owner in entry.get("owner"):
                     owners.append(owner.decode())
@@ -208,13 +221,15 @@ def searchHosts(con, searchFilter):
 
 class HostCreateSchema(Schema):
     cn = fields.Str(required=True, validate=Length(max=100))
+    description = fields.Str(required=True, validate=Length(max=1000))
     owners = fields.List(fields.Str(validate=Length(max=200)), required=False)
 
     class Meta:
         fields = ("cn", "owners")
 
 class HostUpdateSchema(Schema):
-    owners = fields.List(fields.Str(validate=Length(max=200)), required=True)
+    description = fields.Str(validate=Length(max=1000))
+    owners = fields.List(fields.Str(validate=Length(max=200)))
 
 host_create_schema = HostCreateSchema()
 host_update_schema = HostUpdateSchema()

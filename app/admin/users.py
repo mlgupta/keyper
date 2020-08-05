@@ -85,7 +85,7 @@ def create_user():
     if ("sshPublicKeys" in req):
         sshPublicKeys = []
         for sshPublicKey in req.get("sshPublicKeys"):
-            sshPublicKeys.append(sshPublicKey.encode())
+            sshPublicKeys.append(json.dumps(sshPublicKey).encode())
         attrs["sshPublicKey"] = sshPublicKeys
 
     dn = "cn=" + req["cn"] + "," + app.config["LDAP_BASEUSER"] 
@@ -154,7 +154,7 @@ def update_user(username):
     if ("sshPublicKeys" in req):
         sshPublicKeys = []
         for sshPublicKey in req.get("sshPublicKeys"):
-            sshPublicKeys.append(sshPublicKey.encode())
+            sshPublicKeys.append(json.dumps(sshPublicKey).encode())
         mod_list.append((ldap.MOD_REPLACE,"sshPublicKey",sshPublicKeys))
 
     try:
@@ -300,8 +300,10 @@ def search_users(con, searchFilter):
                     memberOfs.append(memberOf.decode())
                 user["memberOfs"] = memberOfs
             if ("sshPublicKey" in entry):
-                for sshPublicKey in entry.get("sshPublicKey"):
-                    sshPublicKeys.append(sshPublicKey.decode())
+                for key in entry.get("sshPublicKey"):
+                    sshPublicKey = {}
+                    sshPublicKey = json.loads(key.decode())
+                    sshPublicKeys.append(sshPublicKey)
                 user["sshPublicKeys"] = sshPublicKeys
 
             list.append(user)
@@ -329,6 +331,15 @@ def get_generalized_time():
     app.logger.debug("Exit")
     return dt_utc
 
+class sshPublicKeySchema(Schema):
+    key = fields.Str(required=True, validate=Length(max=3000))
+    dateExpire = fields.Date(required=True)
+    hostGroups = fields.List(fields.Str(validate=Length(max=200)))
+
+    class Meta:
+        dateformat = '%Y%m%d'
+        fields = ("key", "dateExpire", "hostGroups")
+
 class UserCreateSchema(Schema):
     cn = fields.Str(required=True, validate=Length(max=100))
     userPassword = fields.Str(required=True, validate=Length(max=100))
@@ -337,7 +348,7 @@ class UserCreateSchema(Schema):
     displayName = fields.Str(required=False, validate=Length(max=100))
     mail = fields.Email(required=False, validate=Length(max=100))
     accountLocked = fields.Bool(required=False)
-    sshPublicKeys = fields.List(fields.Str(validate=Length(max=2000)), required=False)
+    sshPublicKeys = fields.List(fields.Nested(sshPublicKeySchema), required=False)
     memberOfs = fields.List(fields.Str(validate=Length(max=200)), required=False)
 
     class Meta:
@@ -350,7 +361,7 @@ class UserUpdateSchema(Schema):
     displayName = fields.Str(required=False, validate=Length(max=100))
     mail = fields.Email(required=False, validate=Length(max=100))
     accountLocked = fields.Bool(required=False)
-    sshPublicKeys = fields.List(fields.Str(validate=Length(max=2000)), required=False)
+    sshPublicKeys = fields.List(fields.Nested(sshPublicKeySchema), required=False)
     memberOfs = fields.List(fields.Str(validate=Length(max=200)), required=False)
 
     class Meta:

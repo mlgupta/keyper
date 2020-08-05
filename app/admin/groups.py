@@ -61,6 +61,9 @@ def create_group():
     attrs['objectClass'] = [b'groupOfNames',b'top']
     attrs["cn"] = [req["cn"].encode()]
 
+    if ("description" in req):
+        attrs["description"] = [req["description"].encode()]
+
     if ("members" in req):
         members = []
         for member in req.get("members"):
@@ -105,6 +108,9 @@ def update_group(groupname):
     app.logger.debug(req)
 
     mod_list = []
+
+    if ("description" in req):
+        mod_list.append((ldap.MOD_REPLACE,"description",[req.get("description").encode()]))
 
     if ("members" in req):
         members = []
@@ -156,7 +162,7 @@ def searchGroups(con, searchFilter):
     app.logger.debug("Enter")
 
     base_dn = app.config["LDAP_BASEGROUPS"]
-    attrs = ['dn','cn','member']
+    attrs = ['dn','cn', 'description', 'member']
 
     try:
         result = con.search_s(base_dn,ldap.SCOPE_ONELEVEL,searchFilter, attrs)
@@ -172,6 +178,10 @@ def searchGroups(con, searchFilter):
                 for i in entry.get("cn"):
                     cn = i.decode()
                     group["cn"] = cn
+            if ("description" in entry):
+                for i in entry.get("description"):
+                    description = i.decode()
+                    group["description"] = description
             if ("member" in entry):
                 for member in entry.get("member"):
                     members.append(member.decode())
@@ -189,13 +199,15 @@ def searchGroups(con, searchFilter):
 
 class GroupCreateSchema(Schema):
     cn = fields.Str(required=True, validate=Length(max=100))
+    description = fields.Str(required=True, validate=Length(max=1000))
     members = fields.List(fields.Str(validate=Length(max=200)), required=False)
 
     class Meta:
         fields = ("cn", "members")
 
 class GroupUpdateSchema(Schema):
-    members = fields.List(fields.Str(validate=Length(max=200)), required=True)
+    members = fields.List(fields.Str(validate=Length(max=200)))
+    description = fields.Str(validate=Length(max=1000))
 
 group_create_schema = GroupCreateSchema()
 group_update_schema = GroupUpdateSchema()
