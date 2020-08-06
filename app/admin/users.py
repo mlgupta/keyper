@@ -343,6 +343,7 @@ class sshPublicKeySchema(Schema):
 class UserCreateSchema(Schema):
     cn = fields.Str(required=True, validate=Length(max=100))
     userPassword = fields.Str(required=True, validate=Length(max=100))
+    confirmPassword = fields.Str(required=True, validate=Length(max=100))
     givenName = fields.Str(required=True, validate=Length(max=100))
     sn = fields.Str(required=True, validate=Length(max=100))
     displayName = fields.Str(required=False, validate=Length(max=100))
@@ -352,10 +353,11 @@ class UserCreateSchema(Schema):
     memberOfs = fields.List(fields.Str(validate=Length(max=200)), required=False)
 
     class Meta:
-        fields = ("cn", "userPassword", "givenName", "sn", "displayName", "mail", "accountLocked", "sshPublicKeys", "memberOfs")
+        fields = ("cn", "userPassword", "confirmPassword", "givenName", "sn", "displayName", "mail", "accountLocked", "sshPublicKeys", "memberOfs")
 
 class UserUpdateSchema(Schema):
     userPassword = fields.Str(required=False, validate=Length(max=100))
+    confirmPassword = fields.Str(required=False, validate=Length(max=100))
     givenName = fields.Str(required=False, validate=Length(max=100))
     sn = fields.Str(required=False, validate=Length(max=100))
     displayName = fields.Str(required=False, validate=Length(max=100))
@@ -365,7 +367,7 @@ class UserUpdateSchema(Schema):
     memberOfs = fields.List(fields.Str(validate=Length(max=200)), required=False)
 
     class Meta:
-        fields = ("userPassword", "givenName", "sn", "displayName", "mail", "accountLocked", "sshPublicKeys", "memberOfs")
+        fields = ("userPassword", "confirmPassword", "givenName", "sn", "displayName", "mail", "accountLocked", "sshPublicKeys", "memberOfs")
 
 user_create_schema = UserCreateSchema()
 user_update_schema = UserUpdateSchema()

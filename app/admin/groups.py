@@ -203,11 +203,14 @@ class GroupCreateSchema(Schema):
     members = fields.List(fields.Str(validate=Length(max=200)), required=False)
 
     class Meta:
-        fields = ("cn", "members")
+        fields = ("cn", "members", "description")
 
 class GroupUpdateSchema(Schema):
     members = fields.List(fields.Str(validate=Length(max=200)))
     description = fields.Str(validate=Length(max=1000))
+
+    class Meta:
+        fields = ("members", "description")
 
 group_create_schema = GroupCreateSchema()
 group_update_schema = GroupUpdateSchema()

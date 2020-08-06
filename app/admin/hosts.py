@@ -225,11 +225,13 @@ class HostCreateSchema(Schema):
     owners = fields.List(fields.Str(validate=Length(max=200)), required=False)
 
     class Meta:
-        fields = ("cn", "owners")
+        fields = ("cn", "owners", "description")
 
 class HostUpdateSchema(Schema):
     description = fields.Str(validate=Length(max=1000))
     owners = fields.List(fields.Str(validate=Length(max=200)))
+    class Meta:
+        fields = ("owners", "description")
 
 host_create_schema = HostCreateSchema()
 host_update_schema = HostUpdateSchema()
