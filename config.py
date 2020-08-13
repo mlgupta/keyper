@@ -1,30 +1,52 @@
+from os import environ
+
 ''' Application Config '''
 class Config(object):
     ''' Application Config '''
     DEBUG = False
     TESTING = False
-    LDAP_HOST = "fjord.dbsentry.com"
+    LDAP_HOST = "localhost"
     LDAP_PORT = "389"
-    LDAP_USER = "cn=Manager,dc=dbsentry,dc=com"
-    LDAP_PASSWD = "success."
-    LDAP_BASEDN = "dc=dbsentry,dc=com"
+    LDAP_DOMAIN = environ.get("LDAP_DOMAIN", "keyper.example.org")
+
+    LDAP_BASEDN = "dc=" + LDAP_DOMAIN.replace(".",",dc=")
+
     LDAP_BASEUSER = "ou=people," + LDAP_BASEDN
     LDAP_BASEHOST = "ou=Hosts," + LDAP_BASEDN
     LDAP_BASEGROUPS = "ou=groups," + LDAP_BASEDN
+    LDAP_USER = "cn=Manager," + LDAP_BASEDN
+    LDAP_PASSWD = environ.get("LDAP_ADMIN_PASSWORD", "superdupersecret")
 
-    JWT_SECRET_KEY = 'super-duper-secret'
+    LDAP_ALL_HOST_GROUP = "cn=AllHosts," + LDAP_BASEGROUPS
 
-    LOG_TYPE = 'stream'
-    LOG_LEVEL = 'DEBUG'
+    LDAP_PROTECTED_USERS = ["admin"]
+    LDAP_PROTECTED_GROUPS = ["keyperadmins", "allhosts"]
 
+    JWT_SECRET_KEY = LDAP_PASSWD
+
+    LOG_TYPE = 'watched'
+    LOG_LEVEL = 'INFO'
+    LOG_DIR = "/var/log/keyper"
+    APP_LOG_NAME = "app.log"
+    WWW_LOG_NAME = "www.log"
 
 class ProductionConfig(Config):
     pass
 
 class DevelopmentConfig(Config):
-    LDAP_USER = "cn=manish,ou=people,dc=dbsentry,dc=com"
-    LDAP_PASSWD = "success."
+    LDAP_HOST = "fjord.dbsentry.com"
+    LDAP_PORT = "389"
+    LDAP_PASSWD = environ.get("LDAP_ADMIN_PASSWORD", "success.")
+
+    LOG_TYPE = 'stream'
+    LOG_LEVEL = 'DEBUG'
+
     DEBUG = True
 
 class TestingConfig(Config):
     TESTING = True
+
+config = {
+    'dev': 'DevelopmentConfig',
+    'prod': 'ProductionConfig',
+}

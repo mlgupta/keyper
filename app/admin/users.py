@@ -85,6 +85,7 @@ def create_user():
     if ("sshPublicKeys" in req):
         sshPublicKeys = []
         for sshPublicKey in req.get("sshPublicKeys"):
+            app.logger.debug(json.dumps(sshPublicKey))
             sshPublicKeys.append(json.dumps(sshPublicKey).encode())
         attrs["sshPublicKey"] = sshPublicKeys
 
@@ -229,6 +230,10 @@ def delete_user(username):
     ''' Delete a User '''
     app.logger.debug("Enter")
     dn = "cn=" + username + "," + app.config["LDAP_BASEUSER"]
+    
+    if (username.lower() in app.config["LDAP_PROTECTED_USERS"]):
+        app.logger.error("Protected resource. Delete for user " + username + " is not allowed")
+        raise KeyperError(errors["ObjectProtectedError"].get("msg"), errors["ObjectProtectedError"].get("status"))
 
     try:
         con = operations.open_ldap_connection()
@@ -302,6 +307,7 @@ def search_users(con, searchFilter):
             if ("sshPublicKey" in entry):
                 for key in entry.get("sshPublicKey"):
                     sshPublicKey = {}
+                    app.logger.debug(key.decode())
                     sshPublicKey = json.loads(key.decode())
                     sshPublicKeys.append(sshPublicKey)
                 user["sshPublicKeys"] = sshPublicKeys

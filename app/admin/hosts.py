@@ -72,13 +72,16 @@ def create_host():
 
     dn = "cn=" + req["cn"] + "," + app.config["LDAP_BASEHOST"]
     group_dn = "cn=" + req["cn"] + "," + app.config["LDAP_BASEGROUPS"]
+    allhost_group_dn = app.config["LDAP_ALL_HOST_GROUP"]
 
     try:
+        # Create Host
         con = operations.open_ldap_connection()
         ldif = modlist.addModlist(attrs)
         app.logger.debug("Adding Host with DN:" + dn)
         con.add_s(dn, ldif)
 
+        # Create Group
         attrs={}
         attrs['objectClass'] = [b'groupOfNames',b'top']
         attrs["cn"] = [req["cn"].encode()]
@@ -90,6 +93,11 @@ def create_host():
 
         ldif_group = modlist.addModlist(attrs)
         con.add_s(group_dn, ldif_group)
+
+        #Adding host to AllHost Group
+        mod_list = []
+        mod_list.append(ldap.MOD_ADD, "member", dn)
+        con.modify_s(allhost_group_dn,mod_list)
 
         operations.close_ldap_connection(con)
     except ldap.ALREADY_EXISTS:
@@ -162,6 +170,7 @@ def delete_host(hostname):
         con.delete_s(dn)
         app.logger.debug("Deleting Group: " + group_dn)
         con.delete_s(group_dn)
+
         operations.close_ldap_connection(con)
     except ldap.NO_SUCH_OBJECT:
         app.logger.error("Unable to delete. LDAP Entry not found:" + dn)

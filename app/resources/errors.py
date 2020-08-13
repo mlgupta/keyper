@@ -37,6 +37,10 @@ errors = {
          "msg": "Object Delete Error",
          "status": 403
      },
+     "ObjectProtectedError": {
+         "msg": "Protected Object Delete Not Allowed",
+         "status": 403
+     },
      "ObjectNotExistsError": {
          "msg": "Object with given id doesn't exists",
          "status": 400

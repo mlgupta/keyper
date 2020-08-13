@@ -6,10 +6,11 @@ from flask import request, Response
 from flask import current_app as app
 from marshmallow import fields, Schema
 from marshmallow.validate import Length
+from datetime import datetime
 from . import public
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
-from ..admin.users import search_users
+from ..admin.users import search_users, cn_from_dn
 
 @public.route('/authkeys', methods=['GET'])
 def get_authkeys():
@@ -39,7 +40,7 @@ def get_authkeys():
         raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
 
     if (isUserAuthorized(con, user, host)):
-        sshPublicKeys = getSSHPublicKeys(user)
+        sshPublicKeys = getSSHPublicKeys(con, user, host)
     else:
         raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
 
@@ -82,21 +83,65 @@ def isUserAuthorized(con, user, host):
 
     app.logger.debug("Exit")
 
-    return True
+    return return_flag
 
-def getSSHPublicKeys(user):
+def getSSHPublicKeys(con, user, host):
     app.logger.debug("Enter")
 
     sshPublicKeys = []
+    today = datetime.today()
 
     if ("sshPublicKeys" in user):
-        for sshPublicKey in user["sshPublicKeys"]:
-            sshPublicKeys.append(sshPublicKey)
+        for key in user["sshPublicKeys"]:
+            hostGroups = []
+            sshPublicKey = key["key"]
+            dateExpire = datetime.strptime(key["dateExpire"],"%Y%m%d")
+            hostGroups = key["hostGroups"]
 
-    app.logger.debug("Keys returned: " + str(len(sshPublicKeys)))
+            if (datetime > today):
+                app.logger.debug("Key is valid")
+                if (isHostInHostGroups(con, host, hostGroups)):
+                    sshPublicKeys.append(sshPublicKey)
+                else:
+                    app.logger.debug("host not part of key's hostgroups")
+            else:
+                app.logger.debug("Key Expired")
+
+    app.logger.debug("Number of Keys returned: " + str(len(sshPublicKeys)))
     app.logger.debug("Exit")
 
     return sshPublicKeys
+
+def isHostInHostGroups(con, host, hostGroups):
+    app.logger.debug("Enter")
+
+    return_flag = False
+
+    host_dn = "cn=" + host + "," + app.config["LDAP_BASEHOST"]
+    base_dn = app.config["LDAP_BASEGROUPS"]
+    searchFilter = "(&(|"
+    for group in hostGroups:
+        groupCn = cn_from_dn(group)
+        searchFilter += "(cn=" + groupCn + ")"
+    searchFilter += ")(objectClass=groupOfNames)(member=" + host_dn + "))"
+    app.logger.debug("seachFilter:" + searchFilter)
+    attrs = ['dn','cn']
+
+    try:
+        result = con.search_s(base_dn,ldap.SCOPE_ONELEVEL,searchFilter, attrs)
+
+        app.logger.debug("Search Result length: " + str(len(result)))
+
+        if (len(result) > 0):
+            return_flag = True
+    except ldap.LDAPError:
+        exctype, value = sys.exc_info()[:2]
+        app.logger.error("LDAP Exception " + str(exctype) + " " + str(value))
+        raise KeyperError("LDAP Exception " + str(exctype) + " " + str(value),401)
+
+    app.logger.debug("Exit")
+
+    return return_flag
 
 class AuthKeySchema(Schema):
     username = fields.Str(required=True, validate=Length(max=100))

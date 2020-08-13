@@ -142,6 +142,10 @@ def delete_group(groupname):
     app.logger.debug("Enter")
     dn = "cn=" + groupname + "," + app.config["LDAP_BASEGROUPS"]
 
+    if (groupname.lower() in app.config["LDAP_PROTECTED_GROUPS"]):
+        app.logger.error("Protected resource. Delete for group " + groupname + " is not allowed")
+        raise KeyperError(errors["ObjectProtectedError"].get("msg"), errors["ObjectProtectedError"].get("status"))
+
     try:
         con = operations.open_ldap_connection()
         con.delete_s(dn)
