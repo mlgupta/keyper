@@ -96,7 +96,7 @@ def create_host():
 
         #Adding host to AllHost Group
         mod_list = []
-        mod_list.append(ldap.MOD_ADD, "member", dn)
+        mod_list.append((ldap.MOD_ADD, "member", dn.encode()))
         con.modify_s(allhost_group_dn,mod_list)
 
         operations.close_ldap_connection(con)

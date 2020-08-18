@@ -4,10 +4,10 @@ import os
 import json
 import ldap
 import ldap.modlist as modlist
-from time import strftime,gmtime
+from time import strftime, gmtime
 from flask import request, jsonify
 from flask import current_app as app
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt_claims
 from marshmallow import fields, Schema
 from marshmallow.validate import Length, Email
 from . import admin

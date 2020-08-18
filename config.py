@@ -26,11 +26,11 @@ class Config(object):
 
     JWT_SECRET_KEY = LDAP_PASSWD
 
-    LOG_TYPE = 'watched'
+    LOG_TYPE = 'stream'
     LOG_LEVEL = 'INFO'
-    LOG_DIR = "/var/log/keyper"
-    APP_LOG_NAME = "app.log"
-    WWW_LOG_NAME = "www.log"
+#    LOG_DIR = "/var/log/keyper"
+#    APP_LOG_NAME = "app.log"
+#    WWW_LOG_NAME = "www.log"
 
 class ProductionConfig(Config):
     pass

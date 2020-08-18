@@ -4,7 +4,8 @@ import json
 import ldap
 from flask import request, jsonify
 from flask import current_app as app
-from flask_jwt_extended import create_access_token, create_refresh_token, get_raw_jwt, jwt_required, jwt_refresh_token_required
+from flask_jwt_extended import create_access_token, create_refresh_token, get_raw_jwt, jwt_required
+from flask_jwt_extended import jwt_refresh_token_required, get_jwt_identity, get_jwt_claims
 from marshmallow import fields, Schema
 from marshmallow.validate import Length
 from . import admin
