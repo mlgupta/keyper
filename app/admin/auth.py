@@ -45,8 +45,6 @@ def login():
         app.logger.debug("User Authenticated")
     except ldap.INVALID_CREDENTIALS:
         app.logger.error("Authentication failure. Invalid Credentials for user:" + username)
-        #return_code = 401
-        #return_message = "{msg: Bad Username or Password}"
         raise KeyperError(errors["UnauthorizedError"].get("msg"), errors["UnauthorizedError"].get("status"))
 
     except ldap.LDAPError:
@@ -67,13 +65,13 @@ def login():
             user = list.pop()
 
             app.logger.debug("Getting User role")
-            user_role = 'keyper_user'
+            user_role = app.config["JWT_USER_ROLE"]
             if ("memberOfs" in user):
                 memberOfs = user["memberOfs"]
                 for memberOf in memberOfs:
                     app.logger.debug("memberOf: " + memberOf)
                     if 'keyperadmins' in memberOf.lower():
-                        user_role = 'keyper_admin'
+                        user_role = app.config["JWT_ADMIN_ROLE"]
                 
             app.logger.debug("User role: " + user_role)
 

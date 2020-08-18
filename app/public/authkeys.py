@@ -98,7 +98,9 @@ def getSSHPublicKeys(con, user, host):
             dateExpire = datetime.strptime(key["dateExpire"],"%Y%m%d")
             hostGroups = key["hostGroups"]
 
-            if (datetime > today):
+            app.logger.debug("Key Extracted")
+
+            if (dateExpire > today):
                 app.logger.debug("Key is valid")
                 if (isHostInHostGroups(con, host, hostGroups)):
                     sshPublicKeys.append(sshPublicKey)

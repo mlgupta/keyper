@@ -160,52 +160,59 @@ def update_user(username):
 
     try:
         con = operations.open_ldap_connection()
-        if ("accountLocked" in req):
-            user = {}
-            user = search_users(con,'(&(objectClass=*)(cn=' + username + '))').pop()
-            
-            accountLocked = req["accountLocked"]
-            dt_utc = get_generalized_time()
 
-            if "pwdAccountLockedTime" in user:
-                app.logger.debug("User is Locked: " + username)
-                if accountLocked is True:
-                    app.logger.debug("Re Locking user: " + username)
-                    mod_list.append((ldap.MOD_REPLACE,"pwdAccountLockedTime",[dt_utc.encode()]))
+        KEYPER_ADMIN = app.config["JWT_ADMIN_ROLE"]
+        user_claims = get_jwt_claims()
+        app.logger.debug("user_claims: " + user_claims)
+
+        if KEYPER_ADMIN in user_claims:
+            if ("accountLocked" in req):
+                user = {}
+                user = search_users(con,'(&(objectClass=*)(cn=' + username + '))').pop()
+            
+                accountLocked = req["accountLocked"]
+                dt_utc = get_generalized_time()
+
+                if "pwdAccountLockedTime" in user:
+                    app.logger.debug("User is Locked: " + username)
+                    if accountLocked is True:
+                        app.logger.debug("Re Locking user: " + username)
+                        mod_list.append((ldap.MOD_REPLACE,"pwdAccountLockedTime",[dt_utc.encode()]))
+                    else:
+                        app.logger.debug("Unlocking user: " + username)
+                        mod_list.append((ldap.MOD_DELETE,"pwdAccountLockedTime",None))
                 else:
-                    app.logger.debug("Unlocking user: " + username)
-                    mod_list.append((ldap.MOD_DELETE,"pwdAccountLockedTime",None))
-            else:
-                app.logger.debug("User is Not Locked: " + username)
-                if accountLocked is True:
-                    app.logger.debug("Locking user: " + username)
-                    mod_list.append((ldap.MOD_ADD,"pwdAccountLockedTime",[dt_utc.encode()]))
+                    app.logger.debug("User is Not Locked: " + username)
+                    if accountLocked is True:
+                        app.logger.debug("Locking user: " + username)
+                        mod_list.append((ldap.MOD_ADD,"pwdAccountLockedTime",[dt_utc.encode()]))
 
         if (len(mod_list) > 0):        
             con.modify_s(dn,mod_list)
 
-        if ("memberOfs" in req):
-            if not("accountLocked" in req):
-                user = {}
-                user = search_users(con,'(&(objectClass=*)(cn=' + username + '))').pop()
+        if KEYPER_ADMIN in user_claims:
+            if ("memberOfs" in req):
+                if not("accountLocked" in req):
+                    user = {}
+                    user = search_users(con,'(&(objectClass=*)(cn=' + username + '))').pop()
 
-            memberOfs_req = set(req["memberOfs"])
-            memberOfs_ldap = {}
+                memberOfs_req = set(req["memberOfs"])
+                memberOfs_ldap = {}
             
-            if ("memberOfs" in user):
-                memberOfs_ldap = set(user["memberOfs"])
+                if ("memberOfs" in user):
+                    memberOfs_ldap = set(user["memberOfs"])
 
-            for memberOf in memberOfs_req.difference(memberOfs_ldap):
-                mod_list = []
-                mod_list.append((ldap.MOD_ADD,"member",[dn.encode()]))
-                app.logger.debug("Adding user: " + dn + " to group: " + memberOf)
-                con.modify_s(memberOf,mod_list)
+                for memberOf in memberOfs_req.difference(memberOfs_ldap):
+                    mod_list = []
+                    mod_list.append((ldap.MOD_ADD,"member",[dn.encode()]))
+                    app.logger.debug("Adding user: " + dn + " to group: " + memberOf)
+                    con.modify_s(memberOf,mod_list)
 
-            for memberOf in memberOfs_ldap.difference(memberOfs_req):
-                mod_list = []
-                mod_list.append((ldap.MOD_DELETE,"member",[dn.encode()]))
-                app.logger.debug("Deleting user: " + dn + " from group: " + memberOf)
-                con.modify_s(memberOf,mod_list)
+                for memberOf in memberOfs_ldap.difference(memberOfs_req):
+                    mod_list = []
+                    mod_list.append((ldap.MOD_DELETE,"member",[dn.encode()]))
+                    app.logger.debug("Deleting user: " + dn + " from group: " + memberOf)
+                    con.modify_s(memberOf,mod_list)
 
         list = []
         list = search_users(con,'(&(objectClass=*)(cn=' + username + '))')

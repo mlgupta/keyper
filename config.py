@@ -21,6 +21,8 @@ class Config(object):
 
     LDAP_PROTECTED_USERS = ["admin"]
     LDAP_PROTECTED_GROUPS = ["keyperadmins", "allhosts"]
+    JWT_ADMIN_ROLE = "keyper_admin"
+    JWT_USER_ROLE = "keyper_user"
 
     JWT_SECRET_KEY = LDAP_PASSWD
 

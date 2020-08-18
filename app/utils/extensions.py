@@ -41,7 +41,7 @@ def user_load_callback(user_claims):
 
     return_flag = True
     
-    KEYPER_ADMIN = 'keyper_admin'
+    KEYPER_ADMIN = app.config["JWT_ADMIN_ROLE"]
     user = get_jwt_identity()
     user_claims = get_jwt_claims()
     app.logger.debug("user_claims: " + user_claims)
