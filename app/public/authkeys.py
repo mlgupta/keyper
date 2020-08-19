@@ -12,12 +12,13 @@ from ..resources.errors import KeyperError, errors
 from ..utils import operations
 from ..admin.users import search_users, cn_from_dn
 
-@public.route('/authkeys', methods=['GET'])
+@public.route('/authkeys', methods=['GET','POST'])
 def get_authkeys():
     ''' Get SSH Public Keys '''
     app.logger.debug("Enter")
 
-    req = request.args
+    #req = request.args
+    req = request.values
 
     err = authkey_schema.validate(req)
     if err:
@@ -25,8 +26,12 @@ def get_authkeys():
         app.logger.error("Errors:" + json.dumps(err))
         raise KeyperError(errors["SchemaValidationError"].get("msg"), errors["SchemaValidationError"].get("status"))
 
-    username = request.args.get('username')
-    host = request.args.get('host')
+    #username = request.args.get('username')
+    #host = request.args.get('host')
+    username = request.values.get('username')
+    host = request.values.get('host')
+
+    app.logger.debug("username/host: " + username + "/" + host)
 
     sshPublicKeys = []
     result = ""

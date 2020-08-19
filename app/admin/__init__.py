@@ -14,7 +14,7 @@ from ..resources import errors
 def after_request(response):
     """ Logging after every request. """
     access_logger = logging.getLogger("app.access")
-    ip = request.environ.get("X-Forwarded-For", request.remote_addr)
+    ip = request.headers.get("X-Real-IP", request.remote_addr)
     access_logger.info(
         "%s [%s] %s %s %s %s %s %s %s",
         ip,

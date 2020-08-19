@@ -203,7 +203,7 @@ def searchGroups(con, searchFilter):
 
 class GroupCreateSchema(Schema):
     cn = fields.Str(required=True, validate=Length(max=100))
-    description = fields.Str(required=True, validate=Length(max=1000))
+    description = fields.Str(required=False, validate=Length(max=1000))
     members = fields.List(fields.Str(validate=Length(max=200)), required=False)
 
     class Meta:
