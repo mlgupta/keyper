@@ -317,7 +317,8 @@ def search_users(con, searchFilter):
                     app.logger.debug(key.decode())
                     sshPublicKey = json.loads(key.decode())
                     sshPublicKeys.append(sshPublicKey)
-                user["sshPublicKeys"] = sshPublicKeys
+
+            user["sshPublicKeys"] = sshPublicKeys
 
             list.append(user)
     except ldap.LDAPError:

@@ -5,6 +5,7 @@ from os import environ
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
+from datetime import timedelta;
 from .resources.errors import KeyperError
 from .utils.extensions import jwt, logs, ma
 from config import config
@@ -24,6 +25,7 @@ def create_app():
     app.logger.debug("flask_config: " + flask_config)
 
     jwt.init_app(app)
+    #app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(seconds=60)
 
     ma.init_app(app)
 

@@ -230,8 +230,8 @@ def searchHosts(con, searchFilter):
 
 class HostCreateSchema(Schema):
     cn = fields.Str(required=True, validate=Length(max=100))
-    description = fields.Str(required=False, validate=Length(max=1000))
-    owners = fields.List(fields.Str(validate=Length(max=200)), required=False)
+    description = fields.Str(required=False, validate=Length(max=1000), allow_none=True)
+    owners = fields.List(fields.Str(required=False, validate=Length(max=200)))
 
     class Meta:
         fields = ("cn", "owners", "description")
