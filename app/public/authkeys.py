@@ -51,7 +51,11 @@ def get_authkeys():
     con = operations.open_ldap_connection()
 
     user = {}
-    user = search_users(con,'(&(objectClass=*)(cn=' + username + '))').pop()
+    users = []
+    users = search_users(con,'(&(objectClass=*)(cn=' + username + '))')
+
+    if (len(users) > 0):
+        user = users.pop()
 
     if not ("cn" in user):
         raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
