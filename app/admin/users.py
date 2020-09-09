@@ -358,13 +358,15 @@ def get_generalized_time():
     return dt_utc
 
 class sshPublicKeySchema(Schema):
+    name = fields.Str(required=True, validate=Length(max=100))
     key = fields.Str(required=True, validate=Length(max=3000))
+    fingerprint = fields.Str(required=True, validate=Length(max=100))
     dateExpire = fields.Date(required=True)
     hostGroups = fields.List(fields.Str(validate=Length(max=200)))
 
     class Meta:
         dateformat = '%Y%m%d'
-        fields = ("key", "dateExpire", "hostGroups")
+        fields = ("name", "key", "fingerprint", "dateExpire", "hostGroups")
 
 class UserCreateSchema(Schema):
     cn = fields.Str(required=True, validate=Length(max=100))

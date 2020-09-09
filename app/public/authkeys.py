@@ -42,6 +42,7 @@ def get_authkeys():
     #host = request.args.get('host')
     username = request.values.get('username')
     host = request.values.get('host')
+    fingerprint = request.values.get('fingerprint')
 
     app.logger.debug("username/host: " + username + "/" + host)
 
@@ -61,7 +62,7 @@ def get_authkeys():
         raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
 
     if (isUserAuthorized(con, user, host)):
-        sshPublicKeys = getSSHPublicKeys(con, user, host)
+        sshPublicKeys = getSSHPublicKeys(con, user, host, fingerprint)
     else:
         raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
 
@@ -106,7 +107,7 @@ def isUserAuthorized(con, user, host):
 
     return return_flag
 
-def getSSHPublicKeys(con, user, host):
+def getSSHPublicKeys(con, user, host, fingerprint):
     app.logger.debug("Enter")
 
     sshPublicKeys = []
@@ -118,13 +119,18 @@ def getSSHPublicKeys(con, user, host):
             sshPublicKey = key["key"]
             dateExpire = datetime.strptime(key["dateExpire"],"%Y%m%d")
             hostGroups = key["hostGroups"]
+            keyFP = key["fingerprint"]
 
             app.logger.debug("Key Extracted")
 
             if (dateExpire > today):
                 app.logger.debug("Key is valid")
                 if (isHostInHostGroups(con, host, hostGroups)):
-                    sshPublicKeys.append(sshPublicKey)
+                    if ((fingerprint is None) or (fingerprint == keyFP)):
+                        sshPublicKeys.append(sshPublicKey)
+                    else:
+                        app.logger.debug("Fingerprints don't match. Stored FP: " + keyFP + " Supplied FP: " + fingerprint)
+
                 else:
                     app.logger.debug("host not part of key's hostgroups")
             else:
@@ -169,8 +175,9 @@ def isHostInHostGroups(con, host, hostGroups):
 class AuthKeySchema(Schema):
     username = fields.Str(required=True, validate=Length(max=100))
     host = fields.Str(required=True, validate=Length(max=100))
+    fingerprint = fields.Str(required=False, validate=Length(max=100))
 
     class Meta:
-        fields = ("username", "host")
+        fields = ("username", "host", "fingerprint")
 
 authkey_schema = AuthKeySchema()
