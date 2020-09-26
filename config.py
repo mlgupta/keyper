@@ -48,7 +48,7 @@ class ProductionConfig(Config):
     pass
 
 class DevelopmentConfig(Config):
-    LDAP_HOST = "fjord.dbsentry.com"
+    LDAP_HOST = "10.0.0.5"
     LDAP_PORT = "389"
     LDAP_PASSWD = environ.get("LDAP_ADMIN_PASSWORD", "success.")
 
