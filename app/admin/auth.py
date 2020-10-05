@@ -25,6 +25,7 @@ from ..resources.errors import KeyperError, errors
 from ..utils import operations
 from ..utils.extensions import *
 from ..admin.users import search_users
+from ldapDefn import *
 
 @admin.route('/login', methods=['POST'])
 def login():
@@ -50,7 +51,7 @@ def login():
         user_authenticated = False
         con = operations.open_ldap_connection_no_bind()
         
-        dn = "cn=" + username + "," + app.config["LDAP_BASEUSER"] 
+        dn = LDAP_ATTR_CN + "=" + username + "," + app.config["LDAP_BASEUSER"] 
         app.logger.debug("dn:" + dn)
 
         con.simple_bind_s(dn, password)
@@ -69,7 +70,7 @@ def login():
         try:
             con = operations.open_ldap_connection()
 
-            searchFilter = '(&(objectClass=*)(cn=' + username + '))'
+            searchFilter = '(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + username + '))'
 
             list = search_users(con, searchFilter)
             app.logger.debug("list length: " + str(len(list)))
@@ -83,7 +84,7 @@ def login():
                 memberOfs = user["memberOfs"]
                 for memberOf in memberOfs:
                     app.logger.debug("memberOf: " + memberOf)
-                    if 'keyperadmins' in memberOf.lower():
+                    if app.config["KEYPER_ADMIN_GROUP"] in memberOf.lower():
                         user_role = app.config["JWT_ADMIN_ROLE"]
                 
             app.logger.debug("User role: " + user_role)

@@ -23,6 +23,7 @@ from . import public
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
 from ..admin.users import search_users, cn_from_dn
+from ldapDefn import *
 
 @public.route('/authkeys', methods=['GET','POST'])
 def get_authkeys():
@@ -53,12 +54,12 @@ def get_authkeys():
 
     user = {}
     users = []
-    users = search_users(con,'(&(objectClass=*)(cn=' + username + '))')
+    users = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + username + '))')
 
     if (len(users) > 0):
         user = users.pop()
 
-    if not ("cn" in user):
+    if not (LDAP_ATTR_CN in user):
         raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
 
     if (isUserAuthorized(con, user, host)):
@@ -81,13 +82,13 @@ def isUserAuthorized(con, user, host):
     return_flag = False
 
     user_dn = user["dn"]
-    host_dn = "cn=" + host + "," + app.config["LDAP_BASEHOST"]
+    host_dn = LDAP_ATTR_CN + "=" + host + "," + app.config["LDAP_BASEHOST"]
     base_dn = app.config["LDAP_BASEGROUPS"]
     searchFilter = "(|(&(objectClass=groupOfNames)(member=" + user_dn + ")(cn=Admins))(&(objectClass=groupOfNames)(member=" + user_dn + ")(member=" + host_dn + ")))"
     app.logger.debug("seachFilter:" + searchFilter)
-    attrs = ['dn','cn']
+    attrs = [LDAP_ATTR_DN,LDAP_ATTR_CN]
 
-    if "pwdAccountLockedTime" in user:
+    if LDAP_ATTR_PWDACCOUNTLOCKEDTIME in user:
         app.logger.debug("Account is locked for user: " + user_dn)
         return_flag = False
 
@@ -146,15 +147,15 @@ def isHostInHostGroups(con, host, hostGroups):
 
     return_flag = False
 
-    host_dn = "cn=" + host + "," + app.config["LDAP_BASEHOST"]
+    host_dn = LDAP_ATTR_CN + "=" + host + "," + app.config["LDAP_BASEHOST"]
     base_dn = app.config["LDAP_BASEGROUPS"]
     searchFilter = "(&(|"
     for group in hostGroups:
         groupCn = cn_from_dn(group)
-        searchFilter += "(cn=" + groupCn + ")"
+        searchFilter += "(" + LDAP_ATTR_CN + "=" + groupCn + ")"
     searchFilter += ")(objectClass=groupOfNames)(member=" + host_dn + "))"
     app.logger.debug("seachFilter:" + searchFilter)
-    attrs = ['dn','cn']
+    attrs = [LDAP_ATTR_DN,LDAP_ATTR_CN]
 
     try:
         result = con.search_s(base_dn,ldap.SCOPE_ONELEVEL,searchFilter, attrs)

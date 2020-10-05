@@ -17,25 +17,27 @@ class Config(object):
     ''' Application Config '''
     DEBUG = False
     TESTING = False
+
     LDAP_HOST = "localhost"
     LDAP_PORT = "389"
     LDAP_DOMAIN = environ.get("LDAP_DOMAIN", "keyper.example.org")
 
     LDAP_BASEDN = "dc=" + LDAP_DOMAIN.replace(".",",dc=")
-
     LDAP_BASEUSER = "ou=people," + LDAP_BASEDN
     LDAP_BASEHOST = "ou=Hosts," + LDAP_BASEDN
     LDAP_BASEGROUPS = "ou=groups," + LDAP_BASEDN
+    LDAP_ALL_HOST_GROUP = "cn=AllHosts," + LDAP_BASEGROUPS
+
     LDAP_USER = "cn=Manager," + LDAP_BASEDN
     LDAP_PASSWD = environ.get("LDAP_ADMIN_PASSWORD", "superdupersecret")
 
-    LDAP_ALL_HOST_GROUP = "cn=AllHosts," + LDAP_BASEGROUPS
-
     LDAP_PROTECTED_USERS = ["admin"]
     LDAP_PROTECTED_GROUPS = ["keyperadmins", "allhosts"]
+
+    KEYPER_ADMIN_GROUP = "keyperadmins"
+
     JWT_ADMIN_ROLE = "keyper_admin"
     JWT_USER_ROLE = "keyper_user"
-
     JWT_SECRET_KEY = LDAP_PASSWD
 
     LOG_TYPE = 'stream'

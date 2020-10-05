@@ -26,6 +26,7 @@ from . import admin
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
 from ..utils.extensions import requires_keyper_admin
+from ldapDefn import *
 
 @admin.route('/users', methods=['GET'])
 @jwt_required
@@ -34,7 +35,7 @@ def get_users():
     ''' List All Users '''
     app.logger.debug("Enter")
     con = operations.open_ldap_connection()
-    result = search_users(con, '(objectClass=*)')
+    result = search_users(con, '(' + LDAP_ATTR_OBJECTCLASS + '=*)')
     operations.close_ldap_connection(con)
 
     app.logger.debug("Exit")
@@ -47,7 +48,7 @@ def get_user(username):
     ''' List a User '''
     app.logger.debug("Enter")
     con = operations.open_ldap_connection()
-    result = search_users(con, '(&(objectClass=*)(cn=' + username + '))')
+    result = search_users(con, '(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + username + '))')
     operations.close_ldap_connection(con)
     app.logger.debug("Exit")
 
@@ -69,39 +70,41 @@ def create_user():
     app.logger.debug(req)
 
     attrs = {}
-    attrs['objectClass'] = [b'inetOrgPerson',b'top',b'ldapPublicKey',b'pwdPolicy']
-    attrs["cn"] = [req["cn"].encode()]
-    attrs["uid"] = [req["cn"].encode()]
-    attrs["sn"] = [req["sn"].encode()]
-    attrs["pwdAttribute"] = b'userPassword'
+    attrs[LDAP_ATTR_OBJECTCLASS] = LDAP_OBJECTCLASS_USER
+    attrs[LDAP_ATTR_CN] = [req["cn"].encode()]
+    attrs[LDAP_ATTR_UID] = [req["cn"].encode()]
+    attrs[LDAP_ATTR_SN] = [req["sn"].encode()]
+    app.logger.debug("here")
+    attrs[LDAP_ATTR_PWDATTRIBUTE] = bytes(LDAP_ATTR_USERPASSWORD, encoding='utf-8')
 
+    app.logger.debug(" after here")
 
     if ("givenName" in req):
-        attrs["givenName"] = [req["givenName"].encode()]
+        attrs[LDAP_ATTR_GIVENNAME] = [req["givenName"].encode()]
 
     if ("displayName" in req):
-        attrs["displayName"] = [req["displayName"].encode()]
+        attrs[LDAP_ATTR_DISPLAYNAME] = [req["displayName"].encode()]
 
     if ("mail" in req):
-        attrs["mail"] = [req["mail"].encode()]
+        attrs[LDAP_ATTR_MAIL] = [req["mail"].encode()]
 
     if ("accountLocked" in req):
         accountLocked = req["accountLocked"]
         if accountLocked is True:
             dt_utc = get_generalized_time()
-            attrs["pwdAccountLockedTime"] = dt_utc.encode()
+            attrs[LDAP_ATTR_PWDACCOUNTLOCKEDTIME] = dt_utc.encode()
 
     if ("userPassword" in req):
-        attrs["userPassword"] = [req["userPassword"].encode()]
+        attrs[LDAP_ATTR_USERPASSWORD] = [req["userPassword"].encode()]
 
     if ("sshPublicKeys" in req):
         sshPublicKeys = []
         for sshPublicKey in req.get("sshPublicKeys"):
             app.logger.debug(json.dumps(sshPublicKey))
             sshPublicKeys.append(json.dumps(sshPublicKey).encode())
-        attrs["sshPublicKey"] = sshPublicKeys
+        attrs[LDAP_ATTR_SSHPUBLICKEY] = sshPublicKeys
 
-    dn = "cn=" + req["cn"] + "," + app.config["LDAP_BASEUSER"] 
+    dn = LDAP_ATTR_CN + "=" + req["cn"] + "," + app.config["LDAP_BASEUSER"] 
 
     try:
         con = operations.open_ldap_connection()
@@ -113,12 +116,12 @@ def create_user():
         if ("memberOfs" in req):
             for memberOf in req.get("memberOfs"):
                 mod_list = []
-                mod_list.append((ldap.MOD_ADD,"member",[dn.encode()]))
+                mod_list.append((ldap.MOD_ADD,LDAP_ATTR_MEMBER,[dn.encode()]))
                 app.logger.debug("Adding user: " + dn + " to group: " + memberOf)
                 con.modify_s(memberOf,mod_list)
 
         list = []
-        list = search_users(con,'(&(objectClass=*)(cn=' + req["cn"] + '))')
+        list = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + req["cn"] + '))')
 
         operations.close_ldap_connection(con)
     except ldap.ALREADY_EXISTS:
@@ -137,7 +140,7 @@ def create_user():
 def update_user(username):
     ''' Update a user '''
     app.logger.debug("Enter")
-    dn = "cn=" + username + "," + app.config["LDAP_BASEUSER"]
+    dn = LDAP_ATTR_CN + "=" + username + "," + app.config["LDAP_BASEUSER"]
 
     req = request.get_json()
     app.logger.debug(req)
@@ -150,25 +153,25 @@ def update_user(username):
     mod_list = []
 
     if ("sn" in req):
-        mod_list.append((ldap.MOD_REPLACE,"sn",[req["sn"].encode()]))
+        mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_SN,[req["sn"].encode()]))
 
-    if ("giveName" in req):
-        mod_list.append((ldap.MOD_REPLACE,"giveName",[req["giveName"].encode()]))
+    if ("givenName" in req):
+        mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_GIVENNAME,[req["givenName"].encode()]))
 
     if ("displayName" in req):
-        mod_list.append((ldap.MOD_REPLACE,"displayName",[req["displayName"].encode()]))
+        mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_DISPLAYNAME,[req["displayName"].encode()]))
 
     if ("mail" in req):
-        mod_list.append((ldap.MOD_REPLACE,"mail",[req["mail"].encode()]))
+        mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_MAIL,[req["mail"].encode()]))
     
     if ("userPassword" in req):
-        mod_list.append((ldap.MOD_REPLACE,"userPassword",[req["userPassword"].encode()]))
+        mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_USERPASSWORD,[req["userPassword"].encode()]))
 
     if ("sshPublicKeys" in req):
         sshPublicKeys = []
         for sshPublicKey in req.get("sshPublicKeys"):
             sshPublicKeys.append(json.dumps(sshPublicKey).encode())
-        mod_list.append((ldap.MOD_REPLACE,"sshPublicKey",sshPublicKeys))
+        mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_SSHPUBLICKEY,sshPublicKeys))
 
     try:
         con = operations.open_ldap_connection()
@@ -180,24 +183,24 @@ def update_user(username):
         if KEYPER_ADMIN in user_claims:
             if ("accountLocked" in req):
                 user = {}
-                user = search_users(con,'(&(objectClass=*)(cn=' + username + '))').pop()
+                user = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + username + '))').pop()
             
                 accountLocked = req["accountLocked"]
                 dt_utc = get_generalized_time()
 
-                if "pwdAccountLockedTime" in user:
+                if LDAP_ATTR_PWDACCOUNTLOCKEDTIME in user:
                     app.logger.debug("User is Locked: " + username)
                     if accountLocked is True:
                         app.logger.debug("Re Locking user: " + username)
-                        mod_list.append((ldap.MOD_REPLACE,"pwdAccountLockedTime",[dt_utc.encode()]))
+                        mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_PWDACCOUNTLOCKEDTIME,[dt_utc.encode()]))
                     else:
                         app.logger.debug("Unlocking user: " + username)
-                        mod_list.append((ldap.MOD_DELETE,"pwdAccountLockedTime",None))
+                        mod_list.append((ldap.MOD_DELETE,LDAP_ATTR_PWDACCOUNTLOCKEDTIME,None))
                 else:
                     app.logger.debug("User is Not Locked: " + username)
                     if accountLocked is True:
                         app.logger.debug("Locking user: " + username)
-                        mod_list.append((ldap.MOD_ADD,"pwdAccountLockedTime",[dt_utc.encode()]))
+                        mod_list.append((ldap.MOD_ADD,LDAP_ATTR_PWDACCOUNTLOCKEDTIME,[dt_utc.encode()]))
 
         if (len(mod_list) > 0):        
             con.modify_s(dn,mod_list)
@@ -206,7 +209,7 @@ def update_user(username):
             if ("memberOfs" in req):
                 if not("accountLocked" in req):
                     user = {}
-                    user = search_users(con,'(&(objectClass=*)(cn=' + username + '))').pop()
+                    user = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + username + '))').pop()
 
                 memberOfs_req = set(req["memberOfs"])
                 memberOfs_ldap = {}
@@ -216,18 +219,18 @@ def update_user(username):
 
                 for memberOf in memberOfs_req.difference(memberOfs_ldap):
                     mod_list = []
-                    mod_list.append((ldap.MOD_ADD,"member",[dn.encode()]))
+                    mod_list.append((ldap.MOD_ADD,LDAP_ATTR_MEMBER,[dn.encode()]))
                     app.logger.debug("Adding user: " + dn + " to group: " + memberOf)
                     con.modify_s(memberOf,mod_list)
 
                 for memberOf in memberOfs_ldap.difference(memberOfs_req):
                     mod_list = []
-                    mod_list.append((ldap.MOD_DELETE,"member",[dn.encode()]))
+                    mod_list.append((ldap.MOD_DELETE,LDAP_ATTR_MEMBER,[dn.encode()]))
                     app.logger.debug("Deleting user: " + dn + " from group: " + memberOf)
                     con.modify_s(memberOf,mod_list)
 
         list = []
-        list = search_users(con,'(&(objectClass=*)(cn=' + username + '))')
+        list = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + username + '))')
         
         operations.close_ldap_connection(con)
     except ldap.NO_SUCH_OBJECT:
@@ -248,7 +251,7 @@ def update_user(username):
 def delete_user(username):
     ''' Delete a User '''
     app.logger.debug("Enter")
-    dn = "cn=" + username + "," + app.config["LDAP_BASEUSER"]
+    dn = LDAP_ATTR_CN + "=" + username + "," + app.config["LDAP_BASEUSER"]
     
     if (username.lower() in app.config["LDAP_PROTECTED_USERS"]):
         app.logger.error("Protected resource. Delete for user " + username + " is not allowed")
@@ -274,7 +277,7 @@ def search_users(con, searchFilter):
     app.logger.debug("Enter")
 
     base_dn = app.config["LDAP_BASEUSER"]
-    attrs = ['dn','cn','uid','givenName','sn','displayName','sshPublicKey','mail','memberOf','pwdAccountLockedTime']
+    attrs = [LDAP_ATTR_DN,LDAP_ATTR_CN,LDAP_ATTR_UID,LDAP_ATTR_GIVENNAME,LDAP_ATTR_SN,LDAP_ATTR_DISPLAYNAME,LDAP_ATTR_SSHPUBLICKEY,LDAP_ATTR_MAIL,LDAP_ATTR_MEMBEROF,LDAP_ATTR_PWDACCOUNTLOCKEDTIME]
 
     try:
         result = con.search_s(base_dn,ldap.SCOPE_ONELEVEL,searchFilter, attrs)
@@ -287,50 +290,49 @@ def search_users(con, searchFilter):
             sshPublicKeys = []
             memberOfs = []
 
-            if ("cn" in entry):
-                for i in entry.get("cn"):
+            if (LDAP_ATTR_CN in entry):
+                for i in entry.get(LDAP_ATTR_CN):
                     cn = i.decode()
                     user["cn"] = cn
-            if ("uid" in entry):
-                for i in entry.get("uid"):
+            if (LDAP_ATTR_UID in entry):
+                for i in entry.get(LDAP_ATTR_UID):
                     uid = i.decode()
                     user["uid"] = uid
-            if ("sn" in entry):
-                for i in entry.get("sn"):
+            if (LDAP_ATTR_SN in entry):
+                for i in entry.get(LDAP_ATTR_SN):
                     sn = i.decode()
                     user["sn"] = sn
-            if ("givenName" in entry):
-                for i in entry.get("givenName"):
+            if (LDAP_ATTR_GIVENNAME in entry):
+                for i in entry.get(LDAP_ATTR_GIVENNAME):
                     givenName = i.decode()
                     user["givenName"] = givenName
-            if ("displayName" in entry):
-                for i in entry.get("displayName"):
+            if (LDAP_ATTR_DISPLAYNAME in entry):
+                for i in entry.get(LDAP_ATTR_DISPLAYNAME):
                     displayName = i.decode()
                     user["displayName"] = displayName
-            if ("mail" in entry):
-                for i in entry.get("mail"):
+            if (LDAP_ATTR_MAIL in entry):
+                for i in entry.get(LDAP_ATTR_MAIL):
                     mail = i.decode()
                     user["mail"] = mail
-            if ("pwdAccountLockedTime" in entry):
+            if (LDAP_ATTR_PWDACCOUNTLOCKEDTIME in entry):
                 user["accountLocked"] = True
-                for i in entry.get("pwdAccountLockedTime"):
+                for i in entry.get(LDAP_ATTR_PWDACCOUNTLOCKEDTIME):
                     pwdAccountLockedTime = i.decode()
                     user["pwdAccountLockedTime"] = pwdAccountLockedTime
             else:
                 user["accountLocked"] = False
 
-            if ("memberOf" in entry):
-                for memberOf in entry.get("memberOf"):
+            if (LDAP_ATTR_MEMBEROF in entry):
+                for memberOf in entry.get(LDAP_ATTR_MEMBEROF):
                     memberOfs.append(memberOf.decode())
                 user["memberOfs"] = memberOfs
-            if ("sshPublicKey" in entry):
-                for key in entry.get("sshPublicKey"):
+            if (LDAP_ATTR_SSHPUBLICKEY in entry):
+                for key in entry.get(LDAP_ATTR_SSHPUBLICKEY):
                     sshPublicKey = {}
                     app.logger.debug(key.decode())
                     sshPublicKey = json.loads(key.decode())
                     sshPublicKeys.append(sshPublicKey)
-
-            user["sshPublicKeys"] = sshPublicKeys
+                user["sshPublicKeys"] = sshPublicKeys
 
             list.append(user)
     except ldap.LDAPError:

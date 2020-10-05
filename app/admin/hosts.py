@@ -24,7 +24,7 @@ from . import admin
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
 from ..utils.extensions import requires_keyper_admin
-
+from ldapDefn import *
 
 @admin.route('/hosts', methods=['GET'])
 @jwt_required
@@ -33,7 +33,7 @@ def get_hosts():
     ''' Get all Hosts '''
     app.logger.debug("Enter")
     con = operations.open_ldap_connection()
-    result = searchHosts(con, '(objectClass=*)')
+    result = searchHosts(con, '(' + LDAP_ATTR_OBJECTCLASS + '=*)')
     operations.close_ldap_connection(con)
 
     app.logger.debug("Exit")
@@ -47,7 +47,7 @@ def get_host(hostname):
     ''' Get a Host '''
     app.logger.debug("Enter")
     con = operations.open_ldap_connection()
-    result = searchHosts(con, '(&(objectClass=*)(cn=' + hostname + '))')
+    result = searchHosts(con, '(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + hostname + '))')
     operations.close_ldap_connection(con)
     app.logger.debug("Exit")
 
@@ -70,20 +70,20 @@ def create_host():
     app.logger.debug(req)
 
     attrs = {}
-    attrs['objectClass'] = [b'device',b'top']
-    attrs["cn"] = [req["cn"].encode()]
+    attrs[LDAP_ATTR_OBJECTCLASS] = LDAP_OBJECTCLASS_HOST
+    attrs[LDAP_ATTR_CN] = [req["cn"].encode()]
 
     if ("owners" in req):
         owners = []
         for owner in req.get("owners"):
             owners.append(owner.encode())
-        attrs["owner"] = owners
+        attrs[LDAP_ATTR_OWNER] = owners
 
     if ("description" in req):
-        attrs["description"] = [req.get("description").encode()]
+        attrs[LDAP_ATTR_DESCRIPTION] = [req.get("description").encode()]
 
-    dn = "cn=" + req["cn"] + "," + app.config["LDAP_BASEHOST"]
-    group_dn = "cn=" + req["cn"] + "," + app.config["LDAP_BASEGROUPS"]
+    dn = LDAP_ATTR_CN + "=" + req["cn"] + "," + app.config["LDAP_BASEHOST"]
+    group_dn = LDAP_ATTR_CN + "=" + req["cn"] + "," + app.config["LDAP_BASEGROUPS"]
     allhost_group_dn = app.config["LDAP_ALL_HOST_GROUP"]
 
     try:
@@ -95,11 +95,11 @@ def create_host():
 
         # Create Group
         attrs={}
-        attrs['objectClass'] = [b'groupOfNames',b'top']
-        attrs["cn"] = [req["cn"].encode()]
-        attrs["member"] = [dn.encode()]
+        attrs[LDAP_ATTR_OBJECTCLASS] = LDAP_OBJECTCLASS_GROUP
+        attrs[LDAP_ATTR_CN] = [req["cn"].encode()]
+        attrs[LDAP_ATTR_MEMBER] = [dn.encode()]
         description = req["cn"] + " Autocreated Group"
-        attrs["description"] = [description.encode()]
+        attrs[LDAP_ATTR_DESCRIPTION] = [description.encode()]
 
         app.logger.debug("Adding Group with DN:" + group_dn)
 
@@ -108,7 +108,7 @@ def create_host():
 
         #Adding host to AllHost Group
         mod_list = []
-        mod_list.append((ldap.MOD_ADD, "member", dn.encode()))
+        mod_list.append((ldap.MOD_ADD, LDAP_ATTR_MEMBER, dn.encode()))
         con.modify_s(allhost_group_dn,mod_list)
 
         operations.close_ldap_connection(con)
@@ -129,7 +129,7 @@ def create_host():
 def update_host(hostname):
     ''' Update a Host '''
     app.logger.debug("Enter")
-    dn = "cn=" + hostname + "," + app.config["LDAP_BASEHOST"]
+    dn = LDAP_ATTR_CN + "=" + hostname + "," + app.config["LDAP_BASEHOST"]
 
     req = request.get_json()
     app.logger.debug(req)
@@ -146,10 +146,10 @@ def update_host(hostname):
         owners = []
         for owner in req.get("owners"):
             owners.append(owner.encode())
-        mod_list.append((ldap.MOD_REPLACE,"owner",owners))
+        mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_OWNER,owners))
 
     if ("description" in req):
-        mod_list.append((ldap.MOD_REPLACE,"description",[req.get("description").encode()]))
+        mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_DESCRIPTION,[req.get("description").encode()]))
 
     try:
         con = operations.open_ldap_connection()
@@ -173,8 +173,8 @@ def update_host(hostname):
 def delete_host(hostname):
     ''' Delete a Host '''
     app.logger.debug("Enter")
-    dn = "cn=" + hostname + "," + app.config["LDAP_BASEHOST"]
-    group_dn = "cn=" + hostname + "," + app.config["LDAP_BASEGROUPS"]
+    dn = LDAP_ATTR_CN + "=" + hostname + "," + app.config["LDAP_BASEHOST"]
+    group_dn = LDAP_ATTR_CN + "=" + hostname + "," + app.config["LDAP_BASEGROUPS"]
 
     try:
         con = operations.open_ldap_connection()
@@ -200,7 +200,7 @@ def searchHosts(con, searchFilter):
     app.logger.debug("Enter")
 
     base_dn = app.config["LDAP_BASEHOST"]
-    attrs = ['dn','cn','description','owner','memberOf']
+    attrs = [LDAP_ATTR_DN,LDAP_ATTR_CN,LDAP_ATTR_DESCRIPTION,LDAP_ATTR_OWNER,LDAP_ATTR_MEMBEROF]
 
     try:
         result = con.search_s(base_dn,ldap.SCOPE_ONELEVEL,searchFilter, attrs)
@@ -213,20 +213,20 @@ def searchHosts(con, searchFilter):
             owners = []
             memberOfs = []
 
-            if ("cn" in entry):
-                for i in entry.get("cn"):
+            if (LDAP_ATTR_CN in entry):
+                for i in entry.get(LDAP_ATTR_CN):
                     cn = i.decode()
                     host["cn"] = cn
-            if ("description" in entry):
-                for i in entry.get("description"):
+            if (LDAP_ATTR_DESCRIPTION in entry):
+                for i in entry.get(LDAP_ATTR_DESCRIPTION):
                     description = i.decode()
                     host["description"] = description
-            if ("owner" in entry):
-                for owner in entry.get("owner"):
+            if (LDAP_ATTR_OWNER in entry):
+                for owner in entry.get(LDAP_ATTR_OWNER):
                     owners.append(owner.decode())
                     host["owners"] = owners
-            if ("memberOf" in entry):
-                for memberOf in entry.get("memberOf"):
+            if (LDAP_ATTR_MEMBEROF in entry):
+                for memberOf in entry.get(LDAP_ATTR_MEMBEROF):
                     memberOfs.append(memberOf.decode())
                 host["memberOfs"] = memberOfs
 

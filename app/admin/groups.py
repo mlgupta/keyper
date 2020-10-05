@@ -24,6 +24,7 @@ from . import admin
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
 from ..utils.extensions import requires_keyper_admin
+from ldapDefn import *
 
 
 @admin.route('/groups', methods=['GET'])
@@ -33,7 +34,7 @@ def get_groups():
     ''' Get all Groups '''
     app.logger.debug("Enter")
     con = operations.open_ldap_connection()
-    result = searchGroups(con, '(objectClass=*)')
+    result = searchGroups(con, '(' + LDAP_ATTR_OBJECTCLASS + '=*)')
     operations.close_ldap_connection(con)
 
     app.logger.debug("Exit")
@@ -47,7 +48,7 @@ def get_group(groupname):
     ''' Get a Group '''
     app.logger.debug("Enter")
     con = operations.open_ldap_connection()
-    result = searchGroups(con, '(&(objectClass=*)(cn=' + groupname + '))')
+    result = searchGroups(con, '(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + groupname + '))')
     operations.close_ldap_connection(con)
     app.logger.debug("Exit")
 
@@ -70,19 +71,19 @@ def create_group():
     app.logger.debug(req)
 
     attrs = {}
-    attrs['objectClass'] = [b'groupOfNames',b'top']
-    attrs["cn"] = [req["cn"].encode()]
+    attrs[LDAP_ATTR_OBJECTCLASS] = LDAP_OBJECTCLASS_GROUP
+    attrs[LDAP_ATTR_CN] = [req["cn"].encode()]
 
     if ("description" in req):
-        attrs["description"] = [req["description"].encode()]
+        attrs[LDAP_ATTR_DESCRIPTION] = [req["description"].encode()]
 
     if ("members" in req):
         members = []
         for member in req.get("members"):
             members.append(member.encode())
-        attrs["member"] = members
+        attrs[LDAP_ATTR_MEMBER] = members
 
-    dn = "cn=" + req["cn"] + "," + app.config["LDAP_BASEGROUPS"]
+    dn = LDAP_ATTR_CN + "=" + req["cn"] + "," + app.config["LDAP_BASEGROUPS"]
 
     try:
         con = operations.open_ldap_connection()
@@ -107,7 +108,7 @@ def create_group():
 def update_group(groupname):
     ''' Update a Group '''
     app.logger.debug("Enter")
-    dn = "cn=" + groupname + "," + app.config["LDAP_BASEGROUPS"]
+    dn = LDAP_ATTR_CN + "=" + groupname + "," + app.config["LDAP_BASEGROUPS"]
 
     req = request.get_json()
 
@@ -122,13 +123,13 @@ def update_group(groupname):
     mod_list = []
 
     if ("description" in req):
-        mod_list.append((ldap.MOD_REPLACE,"description",[req.get("description").encode()]))
+        mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_DESCRIPTION,[req.get("description").encode()]))
 
     if ("members" in req):
         members = []
         for member in req.get("members"):
             members.append(member.encode())
-        mod_list.append((ldap.MOD_REPLACE,"member",members))
+        mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_MEMBER,members))
 
     try:
         con = operations.open_ldap_connection()
@@ -152,7 +153,7 @@ def update_group(groupname):
 def delete_group(groupname):
     ''' Delete a Group '''
     app.logger.debug("Enter")
-    dn = "cn=" + groupname + "," + app.config["LDAP_BASEGROUPS"]
+    dn = LDAP_ATTR_CN + "=" + groupname + "," + app.config["LDAP_BASEGROUPS"]
 
     if (groupname.lower() in app.config["LDAP_PROTECTED_GROUPS"]):
         app.logger.error("Protected resource. Delete for group " + groupname + " is not allowed")
@@ -178,7 +179,7 @@ def searchGroups(con, searchFilter):
     app.logger.debug("Enter")
 
     base_dn = app.config["LDAP_BASEGROUPS"]
-    attrs = ['dn','cn', 'description', 'member']
+    attrs = [LDAP_ATTR_DN,LDAP_ATTR_CN, LDAP_ATTR_DESCRIPTION, LDAP_ATTR_MEMBER]
 
     try:
         result = con.search_s(base_dn,ldap.SCOPE_ONELEVEL,searchFilter, attrs)
@@ -190,16 +191,16 @@ def searchGroups(con, searchFilter):
             group["dn"] = dn
             members = []
 
-            if ("cn" in entry):
-                for i in entry.get("cn"):
+            if (LDAP_ATTR_CN in entry):
+                for i in entry.get(LDAP_ATTR_CN):
                     cn = i.decode()
                     group["cn"] = cn
-            if ("description" in entry):
-                for i in entry.get("description"):
+            if (LDAP_ATTR_DESCRIPTION in entry):
+                for i in entry.get(LDAP_ATTR_DESCRIPTION):
                     description = i.decode()
                     group["description"] = description
-            if ("member" in entry):
-                for member in entry.get("member"):
+            if (LDAP_ATTR_MEMBER in entry):
+                for member in entry.get(LDAP_ATTR_MEMBER):
                     members.append(member.decode())
                     group["members"] = members
 
