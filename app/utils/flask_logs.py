@@ -10,6 +10,9 @@
 # Copyright (c) 2020-2021 DBSentry Corp.  All Rights Reserved.              #
 #                                                                           #
 #############################################################################
+# Original source credit:                                                   #
+#   https://github.com/tenable/flask-logging-demo                           #
+#############################################################################
 from logging.config import dictConfig
 
 """

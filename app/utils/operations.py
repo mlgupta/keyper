@@ -12,6 +12,7 @@
 #############################################################################
 ''' Common methods go here '''
 import ldap
+from datetime import datetime, timedelta
 from flask import current_app as app
 from ..resources.errors import KeyperError, errors
 
@@ -72,3 +73,19 @@ def close_ldap_connection(con):
         raise KeyperError("LDAP Exception " + str(exctype) + " " + str(value),401)
 
     app.logger.debug("Exit")
+
+def duration_to_date_expire(duration, duration_unit):
+    """ Returns expire date per duration """
+    app.logger.debug("Enter")
+
+    app.logger.debug("duration/duration_unit: " + duration + "/" + duration_unit)
+    
+    kwargs = { duration_unit.lower(): int(duration) }
+    date_expire = datetime.now() + timedelta(**kwargs)
+
+    app.logger.debug("date_expire: " + date_expire.strftime("%Y%m%d%H%M%S"))
+
+    app.logger.debug("Exit")
+    return date_expire.strftime("%Y%m%d%H%M%S")
+
+

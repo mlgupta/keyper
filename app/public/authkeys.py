@@ -23,6 +23,7 @@ from . import public
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
 from ..admin.users import search_users, cn_from_dn
+from ..admin.hosts import searchHosts
 from ldapDefn import *
 
 @public.route('/authkeys', methods=['GET','POST'])
@@ -52,9 +53,213 @@ def get_authkeys():
 
     con = operations.open_ldap_connection()
 
+    users = []
+    users = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(|(' + LDAP_ATTR_CN + '=' + username + ')(' + LDAP_ATTR_PRINCIPAL + '=' + username + ')))')
+
+    for user in users:
+        if not (LDAP_ATTR_CN in user):
+            raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
+
+        return_groups = isUserAuthorized(con, user, host)
+        if (len(return_groups) > 0):
+            sshPublicKeys += getSSHPublicKeys(con, user, host, fingerprint, return_groups)
+        else:
+            app.logger.debug("User not allowed to access host: " + user[LDAP_ATTR_CN] + "/" + host)
+
+#    for sshPublicKey in sshPublicKeys:
+#        result = sshPublicKey + "\n"
+    result = '\n'.join(sshPublicKeys)
+
+    operations.close_ldap_connection(con)
+    
+    app.logger.debug("Exit")
+    return Response(result, mimetype='text/plain')
+
+@public.route('/authprinc', methods=['GET','POST'])
+def get_authprinc():
+    ''' Get SSH Public Keys '''
+    app.logger.debug("Enter")
+
+    #req = request.args
+    req = request.values
+
+    err = authprinc_schema.validate(req)
+    if err:
+        app.logger.error("Input Data validation error.")
+        app.logger.error("Errors:" + json.dumps(err))
+        raise KeyperError(errors["SchemaValidationError"].get("msg"), errors["SchemaValidationError"].get("status"))
+
+    username = request.values.get('username')
+    host = request.values.get('host')
+    fingerprint = request.values.get('fingerprint')
+
+    app.logger.debug("username/host/fingerprint: " + username + "/" + host + "/" + fingerprint)
+
+    sshPublicCerts = []
+    result = ""
+
+    con = operations.open_ldap_connection()
+
+    users = []
+    users = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(|(' + LDAP_ATTR_CN + '=' + username + ')(' + LDAP_ATTR_PRINCIPAL + '=' + username + ')))')
+    tnow = datetime.now()
+
+    for user in users:
+        return_groups = isUserAuthorized(con, user, host)
+        if (len(return_groups) > 0):
+            if ("sshPublicCerts" in user):
+                for sshPublicCert in user.get("sshPublicCerts"):
+                    dateExpire = datetime.strptime(sshPublicCert["dateExpire"],"%Y%m%d%H%M%S")
+                    hostGroups = set(map(lambda grp: grp.lower(), sshPublicCert["hostGroups"]))
+                    keyFP = sshPublicCert["fingerprint"]
+
+                    if (tnow <= dateExpire):
+                        if(fingerprint == keyFP):
+                            if (len(return_groups.intersection(hostGroups)) > 0):
+                                result = username + "\n"
+                                break
+                        else:
+                            app.logger.debug("Fingerprint does not match")
+                    else:
+                        app.logger.debug("Key expired")
+                if (result != ""):
+                    break
+            else: 
+                app.logger.debug("No SSH Public Cert in User: " + user[LDAP_ATTR_CN])
+        else:
+            app.logger.debug("User not allowed to access host: " + user[LDAP_ATTR_CN] + "/" + host)
+
+    operations.close_ldap_connection(con)
+    
+    app.logger.debug("Exit")
+    return Response(result, mimetype='text/plain')
+
+@public.route('/hostcert', methods=['GET'])
+def get_hostcert():
+    ''' Get Cert for a host '''
+    app.logger.debug("Enter")
+
+    #req = request.args
+    req = request.values
+
+    err = host_cert_schema.validate(req)
+    if err:
+        app.logger.error("Input Data validation error.")
+        app.logger.error("Errors:" + json.dumps(err))
+        raise KeyperError(errors["SchemaValidationError"].get("msg"), errors["SchemaValidationError"].get("status"))
+
+    hostname = request.values.get('hostname')
+    keyid = int(request.values.get('keyid'))
+    fingerprint = request.values.get('fingerprint')
+
+    app.logger.debug("hostname: " + hostname)
+
+    sshPublicCerts = []
+    result = ""
+
+    con = operations.open_ldap_connection()
+
+    host = {}
+    hosts = []
+    hosts = searchHosts(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + hostname + '))')
+    tnow = datetime.now()
+
+    if (len(hosts) > 0):
+        host = hosts.pop()
+
+    if not (LDAP_ATTR_CN in host):
+        raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
+
+    if ("sshPublicCerts" in host):
+        sshPublicCerts = host.get("sshPublicCerts")
+    else:
+        raise KeyperError(errors["SSHPublicCertNotExistError"].get("msg"), errors["SSHPublicCertNotExistError"].get("status"))
+
+    if(len(sshPublicCerts) == 0):
+        raise KeyperError(errors["SSHPublicCertNotExistError"].get("msg"), errors["SSHPublicCertNotExistError"].get("status"))
+
+    for sshPublicCert in sshPublicCerts:
+        cert = sshPublicCert.get("cert")
+        dateExpire = datetime.strptime(sshPublicCert["dateExpire"],"%Y%m%d%H%M%S")
+        keyFP = sshPublicCert["fingerprint"]
+        keyID = int(sshPublicCert["keyid"])
+
+        app.logger.debug("Cert Extracted")
+
+        if (dateExpire > tnow):
+            app.logger.debug("Cert is valid")
+            if (((keyid is None) or (keyid == keyID)) and ((fingerprint is None) or (fingerprint == keyFP))):
+                result = result + cert + "\n"
+            else:
+                app.logger.debug("Fingerprints or keyid don't match. keyID/fingerprint: " + str(keyID) + "/" + keyFP)
+        else:
+            app.logger.debug("Cert Expired")
+
+    operations.close_ldap_connection(con)
+    
+    app.logger.debug("Exit")
+    return Response(result, mimetype='text/plain')
+
+@public.route('/hostca', methods=['GET', 'POST'])
+def get_hostca():
+    ''' Get Hosts CA Public Key '''
+    app.logger.debug("Enter")
+
+    ssh_ca_host_public_key = app.config["SSH_CA_HOST_KEY"] + ".pub"
+
+    ca_key = ""
+
+    with open(ssh_ca_host_public_key, 'r') as ca_file:
+        ca_key = ca_file.read()
+        ca_file.close()
+    
+    app.logger.debug("Exit")
+    return Response(ca_key, mimetype='text/plain')
+
+@public.route('/userca', methods=['GET', 'POST'])
+def get_userca():
+    ''' Get User CA Public Key '''
+    app.logger.debug("Enter")
+
+    ssh_ca_user_public_key = app.config["SSH_CA_USER_KEY"] + ".pub"
+
+    ca_key = ""
+
+    with open(ssh_ca_user_public_key, 'r') as ca_file:
+        ca_key = ca_file.read()
+        ca_file.close()
+    
+    app.logger.debug("Exit")
+    return Response(ca_key, mimetype='text/plain')
+
+@public.route('/usercert', methods=['GET'])
+def get_usercert():
+    ''' Get Cert for a user '''
+    app.logger.debug("Enter")
+
+    req = request.values
+
+    err = user_cert_schema.validate(req)
+    if err:
+        app.logger.error("Input Data validation error.")
+        app.logger.error("Errors:" + json.dumps(err))
+        raise KeyperError(errors["SchemaValidationError"].get("msg"), errors["SchemaValidationError"].get("status"))
+
+    username = request.values.get('username')
+    keyid = int(request.values.get('keyid'))
+    fingerprint = request.values.get('fingerprint')
+
+    app.logger.debug("username/keyid/fingerprint: " + username + "/" + str(keyid) + "/" + str(fingerprint))
+
+    sshPublicCerts = []
+    result = ""
+
+    con = operations.open_ldap_connection()
+
     user = {}
     users = []
     users = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + username + '))')
+    tnow = datetime.now()
 
     if (len(users) > 0):
         user = users.pop()
@@ -62,29 +267,45 @@ def get_authkeys():
     if not (LDAP_ATTR_CN in user):
         raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
 
-    if (isUserAuthorized(con, user, host)):
-        sshPublicKeys = getSSHPublicKeys(con, user, host, fingerprint)
+    if ("sshPublicCerts" in user):
+        sshPublicCerts = user.get("sshPublicCerts")
     else:
-        raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
+        raise KeyperError(errors["SSHPublicCertNotExistError"].get("msg"), errors["SSHPublicCertNotExistError"].get("status"))
 
-    for sshPublicKey in sshPublicKeys:
-        result = sshPublicKey + "\n"
+    if(len(sshPublicCerts) == 0):
+        raise KeyperError(errors["SSHPublicCertNotExistError"].get("msg"), errors["SSHPublicCertNotExistError"].get("status"))
+
+    for sshPublicCert in sshPublicCerts:
+        cert = sshPublicCert.get("cert")
+        dateExpire = datetime.strptime(sshPublicCert["dateExpire"],"%Y%m%d%H%M%S")
+        keyFP = sshPublicCert["fingerprint"]
+        keyID = int(sshPublicCert["keyid"])
+
+        app.logger.debug("Cert Extracted")
+
+        if (dateExpire > tnow):
+            app.logger.debug("Cert is valid")
+            if (((keyid is None) or (keyid == keyID)) and ((fingerprint is None) or (fingerprint == keyFP))):
+                result = result + cert + "\n"
+            else:
+                app.logger.debug("Fingerprints or keyid don't match. keyID/fingerprint: " + str(keyID) + "/" + keyFP)
+        else:
+            app.logger.debug("Cert Expired")
 
     operations.close_ldap_connection(con)
     
     app.logger.debug("Exit")
     return Response(result, mimetype='text/plain')
 
-
 def isUserAuthorized(con, user, host):
     app.logger.debug("Enter")
 
-    return_flag = False
+    return_groups = set()
 
     user_dn = user["dn"]
     host_dn = LDAP_ATTR_CN + "=" + host + "," + app.config["LDAP_BASEHOST"]
     base_dn = app.config["LDAP_BASEGROUPS"]
-    searchFilter = "(|(&(objectClass=groupOfNames)(member=" + user_dn + ")(cn=Admins))(&(objectClass=groupOfNames)(member=" + user_dn + ")(member=" + host_dn + ")))"
+    searchFilter = "(|(&(objectClass=groupOfNames)(member=" + user_dn + ")(cn=KeyperAdmins))(&(objectClass=groupOfNames)(member=" + user_dn + ")(member=" + host_dn + ")))"
     app.logger.debug("seachFilter:" + searchFilter)
     attrs = [LDAP_ATTR_DN,LDAP_ATTR_CN]
 
@@ -97,8 +318,9 @@ def isUserAuthorized(con, user, host):
 
         app.logger.debug("Search Result length: " + str(len(result)))
 
-        if (len(result) > 0):
-            return_flag = True
+        for dn, entry in result:
+            return_groups.add(dn.lower())
+
     except ldap.LDAPError:
         exctype, value = sys.exc_info()[:2]
         app.logger.error("LDAP Exception " + str(exctype) + " " + str(value))
@@ -106,9 +328,9 @@ def isUserAuthorized(con, user, host):
 
     app.logger.debug("Exit")
 
-    return return_flag
+    return return_groups
 
-def getSSHPublicKeys(con, user, host, fingerprint):
+def getSSHPublicKeys(con, user, host, fingerprint, user_groups):
     app.logger.debug("Enter")
 
     sshPublicKeys = []
@@ -116,24 +338,22 @@ def getSSHPublicKeys(con, user, host, fingerprint):
 
     if ("sshPublicKeys" in user):
         for key in user["sshPublicKeys"]:
-            hostGroups = []
             sshPublicKey = key["key"]
-            dateExpire = datetime.strptime(key["dateExpire"],"%Y%m%d")
-            hostGroups = key["hostGroups"]
+            dateExpire = datetime.strptime(key["dateExpire"],"%Y%m%d%H%M%S")
+            hostGroups = set(map(lambda grp: grp.lower(), key["hostGroups"]))
             keyFP = key["fingerprint"]
 
             app.logger.debug("Key Extracted")
 
             if (dateExpire > today):
                 app.logger.debug("Key is valid")
-                if (isHostInHostGroups(con, host, hostGroups)):
-                    if ((fingerprint is None) or (fingerprint == keyFP)):
+                if ((fingerprint is None) or (fingerprint == keyFP)):
+                    if (len(user_groups.intersection(hostGroups)) > 0):
                         sshPublicKeys.append(sshPublicKey)
                     else:
-                        app.logger.debug("Fingerprints don't match. Stored FP: " + keyFP + " Supplied FP: " + fingerprint)
-
+                        app.logger.debug("host not part of key's hostgroups")
                 else:
-                    app.logger.debug("host not part of key's hostgroups")
+                    app.logger.debug("Fingerprints don't match. Stored FP: " + keyFP + " Supplied FP: " + fingerprint)
             else:
                 app.logger.debug("Key Expired")
 
@@ -181,4 +401,31 @@ class AuthKeySchema(Schema):
     class Meta:
         fields = ("username", "host", "fingerprint")
 
+class AuthPrincSchema(Schema):
+    username = fields.Str(required=True, validate=Length(max=100))
+    host = fields.Str(required=True, validate=Length(max=100))
+    fingerprint = fields.Str(required=True, validate=Length(max=100))
+
+    class Meta:
+        fields = ("username", "host", "fingerprint")
+
+class HostCertSchema(Schema):
+    hostname = fields.Str(required=True, validate=Length(max=100))
+    keyid = fields.Int(required=False)
+    fingerprint = fields.Str(required=False, validate=Length(max=100))
+
+    class Meta:
+        fields = ("hostname", "keyid", "fingerprint")
+
+class UserCertSchema(Schema):
+    username = fields.Str(required=True, validate=Length(max=100))
+    keyid = fields.Int(required=False)
+    fingerprint = fields.Str(required=False, validate=Length(max=100))
+
+    class Meta:
+        fields = ("username", "keyid", "fingerprint")
+
 authkey_schema = AuthKeySchema()
+authprinc_schema = AuthPrincSchema()
+host_cert_schema = HostCertSchema()
+user_cert_schema = UserCertSchema()

@@ -68,5 +68,29 @@ errors = {
      "TokenExpiredError": {
          "msg": "Token Expired",
          "status": 401
+     },
+     "SSHPublicKeyError": {
+         "msg": "SSH Public Key Error",
+         "status": 401
+     },
+     "SSHPublicKeyParseError": {
+         "msg": "SSH Public Key Parse Error",
+         "status": 401
+     },
+     "SSHPublicKeyInvalidError": {
+         "msg": "SSH Public Key Invalid",
+         "status": 401
+     },
+     "OSError": {
+         "msg": "OS Error",
+         "status": 401
+     },
+     "SSHPublicCertError": {
+         "msg": "SSH Public Cert Error",
+         "status": 401
+     },
+     "SSHPublicCertNotExistError": {
+         "msg": "SSH Public Cert does not exist",
+         "status": 401
      }
 }

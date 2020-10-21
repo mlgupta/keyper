@@ -25,13 +25,15 @@ LDAP_ATTR_USERPASSWORD = "userPassword"
 LDAP_ATTR_PWDATTRIBUTE = "pwdAttribute"
 LDAP_ATTR_OWNER = "owner"
 LDAP_ATTR_DESCRIPTION = "description"
+LDAP_ATTR_OPTION = "info"
+LDAP_ATTR_PRINCIPAL = "pseudonym"
 
 LDAP_ATTR_OBJECTCLASS = "objectClass"
 
 LDAP_ATTR_MEMBER = "member"
 
-LDAP_OBJECTCLASS_USER = [b'inetOrgPerson',b'top',b'ldapPublicKey',b'pwdPolicy']
-LDAP_OBJECTCLASS_HOST = [b'device',b'top']
+LDAP_OBJECTCLASS_USER = [b'inetOrgPerson',b'top',b'ldapPublicKey',b'pwdPolicy',b'extensibleObject']
+LDAP_OBJECTCLASS_HOST = [b'device',b'top',b'ldapPublicKey',b'extensibleObject']
 LDAP_OBJECTCLASS_GROUP = [b'groupOfNames',b'top']
 
 

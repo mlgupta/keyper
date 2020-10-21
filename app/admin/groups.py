@@ -90,6 +90,10 @@ def create_group():
         ldif = modlist.addModlist(attrs)
         app.logger.debug("DN:" + dn)
         con.add_s(dn, ldif)
+
+        list = []
+        list = searchGroups(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + req["cn"] + '))')
+
         operations.close_ldap_connection(con)
     except ldap.ALREADY_EXISTS:
         app.logger.error("LDAP Entry already exists:" + dn)
@@ -100,7 +104,7 @@ def create_group():
         raise KeyperError("LDAP Exception " + str(exctype) + " " + str(value),401)
   
     app.logger.debug("Exit")
-    return jsonify(req),201
+    return jsonify(list),201
 
 @admin.route('/groups/<groupname>', methods=['PUT'])
 @jwt_required
@@ -134,6 +138,10 @@ def update_group(groupname):
     try:
         con = operations.open_ldap_connection()
         con.modify_s(dn,mod_list)
+
+        list = []
+        list = searchGroups(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + groupname + '))')
+
         operations.close_ldap_connection(con)
     except ldap.NO_SUCH_OBJECT:
         app.logger.error("Unable to delete. LDAP Entry not found:" + dn)
@@ -145,7 +153,7 @@ def update_group(groupname):
 
 
     app.logger.debug("Exit")
-    return jsonify(req), 201
+    return jsonify(list), 201
 
 @admin.route('/groups/<groupname>', methods=['DELETE'])
 @jwt_required

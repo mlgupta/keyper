@@ -21,10 +21,11 @@ from flask import request, jsonify
 from flask import current_app as app
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt_claims
 from marshmallow import fields, Schema
-from marshmallow.validate import Length, Email
+from marshmallow.validate import Length, Email, Range, OneOf
 from . import admin
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
+from ..utils.sshca import SSHCA
 from ..utils.extensions import requires_keyper_admin
 from ldapDefn import *
 
@@ -97,11 +98,64 @@ def create_user():
     if ("userPassword" in req):
         attrs[LDAP_ATTR_USERPASSWORD] = [req["userPassword"].encode()]
 
+    if ("duration" in req):
+        duration = {}
+        duration["duration"] = req.get("duration")
+        duration["durationUnit"] = req.get("durationUnit")
+        attrs[LDAP_ATTR_OPTION] = [json.dumps(duration).encode()]
+
+    if ("principal" in req):
+        principal = []
+        for princ in req.get("principal"):
+            principal.append(princ.encode())
+        attrs[LDAP_ATTR_PRINCIPAL] = principal
+
+    memberOfs = []
+    if ("memberOfs" in req):
+        memberOfs = list(map(lambda memberOf: memberOf.lower(), req.get("memberOfs")))
+
+    sshPublicKeys = []
+    date_expire = operations.duration_to_date_expire(req.get("duration"), req.get("durationUnit"))
     if ("sshPublicKeys" in req):
-        sshPublicKeys = []
+        key_id = 0
+        keytype = 0
         for sshPublicKey in req.get("sshPublicKeys"):
             app.logger.debug(json.dumps(sshPublicKey))
-            sshPublicKeys.append(json.dumps(sshPublicKey).encode())
+            hostGroups = list(map(lambda hostGroup: hostGroup.lower(), sshPublicKey.get("hostGroups")))
+            if (set(hostGroups).issubset(set(memberOfs))):
+                sshPublicKey["keyid"] = key_id
+                sshPublicKey["keytype"] = keytype
+                sshPublicKey["dateExpire"] = date_expire
+                sshPublicKeys.append(json.dumps(sshPublicKey).encode())
+                key_id += 1
+            else:
+                raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
+
+
+    if ("sshPublicCerts" in req):
+        key_id = 100
+        keytype = 1
+        sshPublicCerts = []
+        sshca = SSHCA()
+        principal_list = req.get("principal")
+        principal  = ','.join(principal_list)
+
+        for sshPublicCert in req.get("sshPublicCerts"):
+            hostGroups = list(map(lambda hostGroup: hostGroup.lower(), sshPublicCert.get("hostGroups")))
+            if (set(hostGroups).issubset(set(memberOfs))):
+                key = sshPublicCert.get("key")
+                cert = sshca.sign_user_key(userkey=key, duration=date_expire, owner=username, principal_list=principal)
+                sshPublicCert["keyid"] = key_id
+                sshPublicCert["keytype"] = keytype
+                sshPublicCert["cert"] = cert
+                sshPublicCert["dateExpire"] = date_expire
+                key_id += 1
+
+                sshPublicKeys.append(json.dumps(sshPublicCert).encode())
+            else:
+                raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
+    
+    if (len(sshPublicKeys) > 0):
         attrs[LDAP_ATTR_SSHPUBLICKEY] = sshPublicKeys
 
     dn = LDAP_ATTR_CN + "=" + req["cn"] + "," + app.config["LDAP_BASEUSER"] 
@@ -120,8 +174,8 @@ def create_user():
                 app.logger.debug("Adding user: " + dn + " to group: " + memberOf)
                 con.modify_s(memberOf,mod_list)
 
-        list = []
-        list = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + req["cn"] + '))')
+        users = []
+        users = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + req["cn"] + '))')
 
         operations.close_ldap_connection(con)
     except ldap.ALREADY_EXISTS:
@@ -133,7 +187,7 @@ def create_user():
         raise KeyperError("LDAP Exception " + str(exctype) + " " + str(value),401)
   
     app.logger.debug("Exit")
-    return jsonify(list),201
+    return jsonify(users),201
 
 @admin.route('/users/<username>', methods=['PUT'])
 @jwt_required
@@ -148,6 +202,7 @@ def update_user(username):
     err = user_update_schema.validate(req)
     if err:
         app.logger.error("Input Data validation error.")
+        app.logger.error(json.dumps(err))
         raise KeyperError(errors["SchemaValidationError"].get("msg"), errors["SchemaValidationError"].get("status"))
 
     mod_list = []
@@ -167,14 +222,97 @@ def update_user(username):
     if ("userPassword" in req):
         mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_USERPASSWORD,[req["userPassword"].encode()]))
 
-    if ("sshPublicKeys" in req):
-        sshPublicKeys = []
-        for sshPublicKey in req.get("sshPublicKeys"):
-            sshPublicKeys.append(json.dumps(sshPublicKey).encode())
-        mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_SSHPUBLICKEY,sshPublicKeys))
-
     try:
         con = operations.open_ldap_connection()
+
+        if ("sshPublicKeys" in req)  or ("sshPublicCerts" in req) or ("accountLocked" in req):
+            user = {}
+            user = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + username + '))').pop()
+
+            app.logger.debug(json.dumps(user))
+
+            key_id = 0
+            sshPublicKeys = []
+            memberOfs = []
+            if ("sshPublicKeys" in user):
+                sshPublicKeys = user.get("sshPublicKeys")
+                if (len(sshPublicKeys) > 0):
+                    key_id = max(list(map(lambda key: key['keyid'], sshPublicKeys))) + 1
+
+            if ("memberOfs" in user):
+                memberOfs = list(map(lambda memberOf: memberOf.lower(), user.get("memberOfs")))
+
+
+            date_expire = operations.duration_to_date_expire(user.get("duration"), user.get("durationUnit"))
+            keytype = 0
+            if ("sshPublicKeys" in req):
+                for sshPublicKey in req.get("sshPublicKeys"):
+                    if ("keyid" in sshPublicKey):
+                        # Delete key
+                        sshPublicKeys = list(filter(lambda key: key['keyid'] != sshPublicKey['keyid'], sshPublicKeys))
+                    else:
+                        # Create a new key
+                        hostGroups = list(map(lambda hostGroup: hostGroup.lower(), sshPublicKey.get("hostGroups")))
+                        if (set(hostGroups).issubset(set(memberOfs))):
+                            sshPublicKey['keyid'] = key_id
+                            sshPublicKey['keytype'] = keytype
+                            sshPublicKey['dateExpire'] = date_expire
+                            key_id += 1
+    #                    sshPublicKeys.append(json.dumps(sshPublicKey).encode())
+                            sshPublicKeys.append(sshPublicKey)
+                        else:
+                            raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
+
+
+            key_id = 100
+            keytype = 1
+            sshPublicCerts = []
+            if ("sshPublicCerts" in user):
+                sshPublicCerts = user.get("sshPublicCerts")
+                app.logger.debug("sshPublicCerts: " + json.dumps(sshPublicCerts))
+                if (len(sshPublicCerts) > 0):
+                    key_id = max(list(map(lambda key: key["keyid"], sshPublicCerts))) + 1
+                    app.logger.debug("key_id: " + str(key_id))
+
+#                if ("sshPublicCerts" in user):
+#                    for cert in user.get("sshPublicCerts"):
+#                        sshPublicKeys.append(json.dumps(cert).encode())
+#                mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_SSHPUBLICKEY,sshPublicKeys))
+
+            if ("sshPublicCerts" in req):
+                sshca = SSHCA()
+                principal_list = user.get("principal")
+                principal  = ','.join(principal_list)
+
+                for sshPublicCert in req.get("sshPublicCerts"):
+                    if ("keyid" in sshPublicCert):
+                        # Delete Cert
+                        sshPublicCerts = list(filter(lambda key: key["keyid"] != sshPublicCert["keyid"], sshPublicCerts))
+                        app.logger.debug("Remaining certs: " + json.dumps(sshPublicCerts))
+                    else:
+                        hostGroups = sshPublicCert.get("hostGroups")
+                        if (set(hostGroups).issubset(set(memberOfs))):
+                            # Create a new key
+                            sshPublicCert['keyid'] = key_id
+                            sshPublicCert['keytype'] = keytype
+                            sshPublicCert['dateExpire'] = date_expire
+                            key = sshPublicCert.get("key")
+                            cert = sshca.sign_user_key(userkey=key, duration=date_expire, owner=username, principal_list=principal)
+                            sshPublicCert["cert"] = cert
+                            key_id += 1
+    #                    sshPublicKeys.append(json.dumps(sshPublicKey).encode())
+                            sshPublicCerts.append(sshPublicCert)
+                        else:
+                            raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
+
+            sshPublicKeys += sshPublicCerts
+            app.logger.debug("sshPublicKeys: " + json.dumps(sshPublicKeys))
+            if(len(sshPublicKeys) > 0):
+                sshPublicKeys = list(map(lambda key: json.dumps(key).encode(), sshPublicKeys))
+                mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_SSHPUBLICKEY,sshPublicKeys))
+            else:
+                if ("sshPublicKeys" in user):
+                    mod_list.append((ldap.MOD_DELETE,LDAP_ATTR_SSHPUBLICKEY,None))
 
         KEYPER_ADMIN = app.config["JWT_ADMIN_ROLE"]
         user_claims = get_jwt_claims()
@@ -182,8 +320,6 @@ def update_user(username):
 
         if KEYPER_ADMIN in user_claims:
             if ("accountLocked" in req):
-                user = {}
-                user = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + username + '))').pop()
             
                 accountLocked = req["accountLocked"]
                 dt_utc = get_generalized_time()
@@ -201,6 +337,18 @@ def update_user(username):
                     if accountLocked is True:
                         app.logger.debug("Locking user: " + username)
                         mod_list.append((ldap.MOD_ADD,LDAP_ATTR_PWDACCOUNTLOCKEDTIME,[dt_utc.encode()]))
+            
+            if ("principal" in req):
+                principal = []
+                for princ in req.get("principal"):
+                    principal.append(princ.encode())
+                mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_PRINCIPAL,principal))
+
+            if ("duration" in req):
+                option = {}
+                option["duration"] = req.get("duration")
+                option["durationUnit"] = req.get("durationUnit")
+                mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_OPTION,json.dumps(option).encode()))
 
         if (len(mod_list) > 0):        
             con.modify_s(dn,mod_list)
@@ -229,8 +377,8 @@ def update_user(username):
                     app.logger.debug("Deleting user: " + dn + " from group: " + memberOf)
                     con.modify_s(memberOf,mod_list)
 
-        list = []
-        list = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + username + '))')
+        users = []
+        users = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + username + '))')
         
         operations.close_ldap_connection(con)
     except ldap.NO_SUCH_OBJECT:
@@ -243,7 +391,7 @@ def update_user(username):
 
 
     app.logger.debug("Exit")
-    return jsonify(list), 201
+    return jsonify(users), 201
 
 @admin.route('/users/<username>', methods=['DELETE'])
 @jwt_required
@@ -277,17 +425,19 @@ def search_users(con, searchFilter):
     app.logger.debug("Enter")
 
     base_dn = app.config["LDAP_BASEUSER"]
-    attrs = [LDAP_ATTR_DN,LDAP_ATTR_CN,LDAP_ATTR_UID,LDAP_ATTR_GIVENNAME,LDAP_ATTR_SN,LDAP_ATTR_DISPLAYNAME,LDAP_ATTR_SSHPUBLICKEY,LDAP_ATTR_MAIL,LDAP_ATTR_MEMBEROF,LDAP_ATTR_PWDACCOUNTLOCKEDTIME]
+    attrs = [LDAP_ATTR_DN,LDAP_ATTR_CN,LDAP_ATTR_UID,LDAP_ATTR_GIVENNAME,LDAP_ATTR_SN,LDAP_ATTR_DISPLAYNAME,LDAP_ATTR_SSHPUBLICKEY,LDAP_ATTR_MAIL,LDAP_ATTR_MEMBEROF,LDAP_ATTR_PWDACCOUNTLOCKEDTIME, LDAP_ATTR_OPTION, LDAP_ATTR_PRINCIPAL]
 
     try:
         result = con.search_s(base_dn,ldap.SCOPE_ONELEVEL,searchFilter, attrs)
 
-        list = []
+        users = []
 
         for dn, entry in result:
             user = {}
             user["dn"] = dn
             sshPublicKeys = []
+            sshPublicCerts = []
+            principal = []
             memberOfs = []
 
             if (LDAP_ATTR_CN in entry):
@@ -326,15 +476,35 @@ def search_users(con, searchFilter):
                 for memberOf in entry.get(LDAP_ATTR_MEMBEROF):
                     memberOfs.append(memberOf.decode())
                 user["memberOfs"] = memberOfs
+
+            if (LDAP_ATTR_PRINCIPAL in entry):
+                for princ in entry.get(LDAP_ATTR_PRINCIPAL):
+                    principal.append(princ.decode())
+                user["principal"] = principal
+
+            if (LDAP_ATTR_OPTION in entry):
+                option = json.loads(entry.get(LDAP_ATTR_OPTION)[0].decode())
+                user["duration"] = option.get("duration")
+                user["durationUnit"] = option.get("durationUnit")
+
             if (LDAP_ATTR_SSHPUBLICKEY in entry):
                 for key in entry.get(LDAP_ATTR_SSHPUBLICKEY):
                     sshPublicKey = {}
                     app.logger.debug(key.decode())
                     sshPublicKey = json.loads(key.decode())
-                    sshPublicKeys.append(sshPublicKey)
-                user["sshPublicKeys"] = sshPublicKeys
+                    if ("keytype" in sshPublicKey):
+                        if (sshPublicKey["keytype"] == 0):
+                            sshPublicKeys.append(sshPublicKey)
+                        else:
+                            sshPublicCerts.append(sshPublicKey)
+                    else:
+                        sshPublicKey["keytype"] = 0
+                        sshPublicKeys.append(sshPublicKey)
 
-            list.append(user)
+                user["sshPublicKeys"] = sshPublicKeys
+                user["sshPublicCerts"] = sshPublicCerts
+
+            users.append(user)
     except ldap.LDAPError:
         exctype, value = sys.exc_info()[:2]
         app.logger.error("LDAP Exception " + str(exctype) + " " + str(value))
@@ -342,7 +512,7 @@ def search_users(con, searchFilter):
 
     app.logger.debug("Exit")
 
-    return list
+    return users
 
 def cn_from_dn(memberOf):
     ''' Return cn from DN '''
@@ -360,15 +530,33 @@ def get_generalized_time():
     return dt_utc
 
 class sshPublicKeySchema(Schema):
+    keyid = fields.Int(required=False)
+    keytype = fields.Int(required=False)
     name = fields.Str(required=True, validate=Length(max=100))
     key = fields.Str(required=True, validate=Length(max=3000))
     fingerprint = fields.Str(required=True, validate=Length(max=100))
-    dateExpire = fields.Date(required=True)
+    #dateExpire = fields.DateTime(required=False)
+    dateExpire = fields.Str(required=False, validate=Length(max=20))
     hostGroups = fields.List(fields.Str(validate=Length(max=200)))
 
     class Meta:
-        dateformat = '%Y%m%d'
-        fields = ("name", "key", "fingerprint", "dateExpire", "hostGroups")
+        #datetimeformat = '%Y%m%d%H%M%S'
+        fields = ("keyid", "keytype", "name", "key", "fingerprint", "dateExpire", "hostGroups")
+
+class sshPublicCertSchema(Schema):
+    keyid = fields.Int(required=False)
+    keytype = fields.Int(required=False)
+    name = fields.Str(required=True, validate=Length(max=100))
+    key = fields.Str(required=True, validate=Length(max=3000))
+    fingerprint = fields.Str(required=True, validate=Length(max=100))
+    #dateExpire = fields.DateTime(required=False)
+    dateExpire = fields.Str(required=False, validate=Length(max=20))
+    hostGroups = fields.List(fields.Str(validate=Length(max=200)))
+    cert = fields.Str(required=False,validate=Length(max=5000))
+
+    class Meta:
+        #datetimeformat = '%Y%m%d%H%M%S'
+        fields = ("keyid", "keytype", "name", "key", "fingerprint", "dateExpire", "hostGroups", "cert")
 
 class UserCreateSchema(Schema):
     cn = fields.Str(required=True, validate=Length(max=100))
@@ -380,10 +568,14 @@ class UserCreateSchema(Schema):
     mail = fields.Email(required=False, validate=Length(max=100))
     accountLocked = fields.Bool(required=False)
     sshPublicKeys = fields.List(fields.Nested(sshPublicKeySchema), required=False)
+    sshPublicCerts = fields.List(fields.Nested(sshPublicCertSchema), required=False)
     memberOfs = fields.List(fields.Str(validate=Length(max=200)), required=False)
+    principal = fields.List(fields.Str(validate=Length(max=200)), required=False)
+    duration = fields.Int(required=True, validate=Range(min=1, max=500))
+    durationUnit = fields.Str(required=True, validate=OneOf(['Hours', 'Days', 'Weeks']))
 
     class Meta:
-        fields = ("cn", "userPassword", "confirmPassword", "givenName", "sn", "displayName", "mail", "accountLocked", "sshPublicKeys", "memberOfs")
+        fields = ("cn", "userPassword", "confirmPassword", "givenName", "sn", "displayName", "mail", "accountLocked", "sshPublicKeys", "sshPublicCerts", "memberOfs", "principal", "duration", "durationUnit")
 
 class UserUpdateSchema(Schema):
     userPassword = fields.Str(required=False, validate=Length(max=100))
@@ -394,10 +586,14 @@ class UserUpdateSchema(Schema):
     mail = fields.Email(required=False, validate=Length(max=100))
     accountLocked = fields.Bool(required=False)
     sshPublicKeys = fields.List(fields.Nested(sshPublicKeySchema), required=False)
+    sshPublicCerts = fields.List(fields.Nested(sshPublicCertSchema), required=False)
     memberOfs = fields.List(fields.Str(validate=Length(max=200)), required=False)
+    principal = fields.List(fields.Str(validate=Length(max=200)), required=False)
+    duration = fields.Int(required=False, validate=Range(min=1, max=500))
+    durationUnit = fields.Str(required=False, validate=OneOf(['Hours', 'Days', 'Weeks']))
 
     class Meta:
-        fields = ("userPassword", "confirmPassword", "givenName", "sn", "displayName", "mail", "accountLocked", "sshPublicKeys", "memberOfs")
+        fields = ("userPassword", "confirmPassword", "givenName", "sn", "displayName", "mail", "accountLocked", "sshPublicKeys", "sshPublicCerts", "memberOfs", "principal", "duration", "durationUnit")
 
 user_create_schema = UserCreateSchema()
 user_update_schema = UserUpdateSchema()

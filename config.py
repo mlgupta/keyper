@@ -39,6 +39,11 @@ class Config(object):
     JWT_ADMIN_ROLE = "keyper_admin"
     JWT_USER_ROLE = "keyper_user"
     JWT_SECRET_KEY = LDAP_PASSWD
+    
+    SSH_CA_HOST_KEY = environ.get("SSH_CA_HOST_KEY", "keyper.example.org")
+    SSH_CA_USER_KEY = environ.get("SSH_CA_USER_KEY", "keyper.example.org")
+    SSH_CA_TMP_WORK_DIR = environ.get("SSH_CA_TMP_WORK_DIR", "keyper.example.org")
+    SSH_CA_TMP_DELETE_FLAG = True
 
     LOG_TYPE = 'stream'
     LOG_LEVEL = 'INFO'
@@ -53,6 +58,11 @@ class DevelopmentConfig(Config):
     LDAP_HOST = "10.0.0.5"
     LDAP_PORT = "389"
     LDAP_PASSWD = environ.get("LDAP_ADMIN_PASSWORD", "success.")
+
+    SSH_CA_HOST_KEY = "/Users/manish/ssh/ca_host_key"
+    SSH_CA_USER_KEY = "/Users/manish/ssh/ca_user_key"
+    SSH_CA_TMP_WORK_DIR = "/Users/manish/ssh/tmp"
+    SSH_CA_TMP_DELETE_FLAG = False
 
     LOG_TYPE = 'stream'
     LOG_LEVEL = 'DEBUG'
