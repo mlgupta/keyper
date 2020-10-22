@@ -309,17 +309,17 @@ def isUserAuthorized(con, user, host):
     app.logger.debug("seachFilter:" + searchFilter)
     attrs = [LDAP_ATTR_DN,LDAP_ATTR_CN]
 
-    if LDAP_ATTR_PWDACCOUNTLOCKEDTIME in user:
-        app.logger.debug("Account is locked for user: " + user_dn)
-        return_flag = False
 
     try:
-        result = con.search_s(base_dn,ldap.SCOPE_ONELEVEL,searchFilter, attrs)
+        if LDAP_ATTR_PWDACCOUNTLOCKEDTIME in user:
+            app.logger.debug("Account is locked for user: " + user_dn)
+        else:
+            result = con.search_s(base_dn,ldap.SCOPE_ONELEVEL,searchFilter, attrs)
 
-        app.logger.debug("Search Result length: " + str(len(result)))
+            app.logger.debug("Search Result length: " + str(len(result)))
 
-        for dn, entry in result:
-            return_groups.add(dn.lower())
+            for dn, entry in result:
+                return_groups.add(dn.lower())
 
     except ldap.LDAPError:
         exctype, value = sys.exc_info()[:2]
