@@ -60,9 +60,7 @@ class DevelopmentConfig(Config):
     LDAP_PORT = "389"
     LDAP_PASSWD = environ.get("LDAP_ADMIN_PASSWORD", "success.")
 
-    SSH_CA_HOST_KEY = "/Users/manish/ssh/ca_host_key"
-    SSH_CA_USER_KEY = "/Users/manish/ssh/ca_user_key"
-    SSH_CA_TMP_WORK_DIR = "/Users/manish/ssh/tmp"
+    SSH_CA_DIR = environ.get("SSH_CA_DIR", "/Users/manish/ssh")
     SSH_CA_TMP_DELETE_FLAG = False
 
     LOG_TYPE = 'stream'

@@ -31,9 +31,10 @@ class SSHCA(object):
 
     def __init__(self):
         app.logger.debug("Enter")
-        self.ca_host_key = app.config["SSH_CA_HOST_KEY"]
-        self.ca_user_key = app.config["SSH_CA_USER_KEY"]
-        self.ca_tmp_work_dir = app.config["SSH_CA_TMP_WORK_DIR"]
+        self.ca_dir = app.config["SSH_CA_DIR"]
+        self.ca_host_key = self.ca_dir + "/" + app.config["SSH_CA_HOST_KEY"]
+        self.ca_user_key = self.ca_dir + "/" + app.config["SSH_CA_USER_KEY"]
+        self.ca_tmp_work_dir = self.ca_dir + "/" + app.config["SSH_CA_TMP_WORK_DIR"]
         self.ca_tmp_work_delete_flag = app.config["SSH_CA_TMP_DELETE_FLAG"]
         app.logger.debug("Exit")
 
