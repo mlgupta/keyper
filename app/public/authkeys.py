@@ -205,7 +205,7 @@ def get_hostca():
     ''' Get Hosts CA Public Key '''
     app.logger.debug("Enter")
 
-    ssh_ca_host_public_key = app.config["SSH_CA_HOST_KEY"] + ".pub"
+    ssh_ca_host_public_key = app.config["SSH_CA_DIR"] + "/" + app.config["SSH_CA_HOST_KEY"] + ".pub"
 
     ca_key = ""
 
@@ -221,7 +221,7 @@ def get_userca():
     ''' Get User CA Public Key '''
     app.logger.debug("Enter")
 
-    ssh_ca_user_public_key = app.config["SSH_CA_USER_KEY"] + ".pub"
+    ssh_ca_user_public_key = app.config["SSH_CA_DIR"] + "/" + app.config["SSH_CA_USER_KEY"] + ".pub"
 
     ca_key = ""
 
