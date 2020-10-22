@@ -81,11 +81,30 @@ def duration_to_date_expire(duration, duration_unit):
     app.logger.debug("duration/duration_unit: " + duration + "/" + duration_unit)
     
     kwargs = { duration_unit.lower(): int(duration) }
-    date_expire = datetime.now() + timedelta(**kwargs)
+    date_expire = datetime.utcnow() + timedelta(**kwargs)
 
     app.logger.debug("date_expire: " + date_expire.strftime("%Y%m%d%H%M%S"))
 
     app.logger.debug("Exit")
     return date_expire.strftime("%Y%m%d%H%M%S")
 
+def ssh_duration(duration, duration_unit):
+    """ Returns  duration """
+    app.logger.debug("Enter")
+
+    app.logger.debug("duration/duration_unit: " + duration + "/" + duration_unit)
+
+    result = duration;
+
+    if (duration_unit == "Hours"):
+        result += "h"
+    elif (duration_unit == "Days"):
+        result += "d"
+    elif (duration_unit == "Weeks"):
+        result += "w"
+
+    app.logger.debug("ssh duration: " + result)
+
+    app.logger.debug("Exit")
+    return result
 

@@ -39,10 +39,11 @@ class Config(object):
     JWT_ADMIN_ROLE = "keyper_admin"
     JWT_USER_ROLE = "keyper_user"
     JWT_SECRET_KEY = LDAP_PASSWD
-    
-    SSH_CA_HOST_KEY = environ.get("SSH_CA_HOST_KEY", "keyper.example.org")
-    SSH_CA_USER_KEY = environ.get("SSH_CA_USER_KEY", "keyper.example.org")
-    SSH_CA_TMP_WORK_DIR = environ.get("SSH_CA_TMP_WORK_DIR", "keyper.example.org")
+
+    SSH_CA_DIR = environ.get("SSH_CA_DIR", "/etc/sshca")
+    SSH_CA_HOST_KEY = environ.get("SSH_CA_HOST_KEY", "ca_host_key")
+    SSH_CA_USER_KEY = environ.get("SSH_CA_USER_KEY", "ca_user_key")
+    SSH_CA_TMP_WORK_DIR = environ.get("SSH_CA_TMP_WORK_DIR", "tmp")
     SSH_CA_TMP_DELETE_FLAG = True
 
     LOG_TYPE = 'stream'

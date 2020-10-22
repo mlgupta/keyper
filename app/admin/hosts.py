@@ -105,10 +105,11 @@ def create_host():
         principal_list = [princ for princ in principal_list if princ]
         principal  = ','.join(principal_list)
         date_expire = operations.duration_to_date_expire(req.get("duration"), req.get("durationUnit"))
-
+        ssh_duration = operations.ssh_duration(req.get("duration"), req.get("durationUnit"))
+        
         for sshPublicCert in req.get("sshPublicCerts"):
             key = sshPublicCert.get("key")
-            cert = sshca.sign_host_key(hostkey=key, duration=date_expire, hostname=req["cn"], principal_list=principal)
+            cert = sshca.sign_host_key(hostkey=key, duration=ssh_duration, hostname=req["cn"], principal_list=principal)
             sshPublicCert["keyid"] = keyid
             sshPublicCert["keytype"] = keytype
             sshPublicCert["cert"] = cert
@@ -215,6 +216,8 @@ def update_host(hostname):
             app.logger.debug("duration: " + host.get("duration"))
             app.logger.debug("durationUnit: " + host.get("durationUnit"))
             date_expire = operations.duration_to_date_expire(host.get("duration"), host.get("durationUnit"))
+            ssh_duration = operations.ssh_duration(host.get("duration"), host.get("durationUnit"))
+
             principal_list = host.get("principal")
             principal  = ','.join(principal_list)
 
@@ -233,7 +236,7 @@ def update_host(hostname):
                     sshPublicCert['keyid'] = keyid
                     sshPublicCert['keytype'] = keytype
                     key = sshPublicCert.get("key")
-                    cert = sshca.sign_host_key(hostkey=key, duration=date_expire, hostname=hostname, principal_list=principal)
+                    cert = sshca.sign_host_key(hostkey=key, duration=ssh_duration, hostname=hostname, principal_list=principal)
                     sshPublicCert["cert"] = cert
                     sshPublicCert["dateExpire"] = date_expire
                     keyid += 1

@@ -54,14 +54,12 @@ class SSHCA(object):
                 key_file_full_path = key_file.name
                 app.logger.debug("Key File: " + key_file_full_path)
 
-                now = datetime.now().strftime("%Y%m%d%H%M%S")
-
                 subprocess.call([
                     'ssh-keygen',
                     '-s', '{}'.format(self.ca_user_key),
                     '-z', str(serial),
                     '-I', owner,
-                    '-V', '{}:{}'.format(now, duration),
+                    '-V', '+{}'.format(duration),
                     '-n', principal_list,
                     '-q',
                     key_file_full_path])
@@ -103,15 +101,13 @@ class SSHCA(object):
                 key_file_full_path = key_file.name
                 app.logger.debug("Key File: " + key_file_full_path)
 
-                now = datetime.now().strftime("%Y%m%d%H%M%S")
-
                 subprocess.call([
                     'ssh-keygen',
                     '-h',
                     '-s', '{}'.format(self.ca_host_key),
                     '-z', str(serial),
                     '-I', hostname,
-                    '-V', '{}:{}'.format(now, duration),
+                    '-V', '+{}'.format(duration),
                     '-n', principal_list,
                     '-q',
                     key_file_full_path])

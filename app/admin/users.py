@@ -116,6 +116,7 @@ def create_user():
 
     sshPublicKeys = []
     date_expire = operations.duration_to_date_expire(req.get("duration"), req.get("durationUnit"))
+    ssh_duration = operations.ssh_duration(req.get("duration"), req.get("durationUnit"))
     if ("sshPublicKeys" in req):
         key_id = 0
         keytype = 0
@@ -131,7 +132,6 @@ def create_user():
             else:
                 raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
 
-
     if ("sshPublicCerts" in req):
         key_id = 100
         keytype = 1
@@ -144,7 +144,7 @@ def create_user():
             hostGroups = list(map(lambda hostGroup: hostGroup.lower(), sshPublicCert.get("hostGroups")))
             if (set(hostGroups).issubset(set(memberOfs))):
                 key = sshPublicCert.get("key")
-                cert = sshca.sign_user_key(userkey=key, duration=date_expire, owner=username, principal_list=principal)
+                cert = sshca.sign_user_key(userkey=key, duration=ssh_duration, owner=username, principal_list=principal)
                 sshPublicCert["keyid"] = key_id
                 sshPublicCert["keytype"] = keytype
                 sshPublicCert["cert"] = cert
@@ -244,6 +244,7 @@ def update_user(username):
 
 
             date_expire = operations.duration_to_date_expire(user.get("duration"), user.get("durationUnit"))
+            ssh_duration = operations.ssh_duration(user.get("duration"), user.get("durationUnit"))
             keytype = 0
             if ("sshPublicKeys" in req):
                 for sshPublicKey in req.get("sshPublicKeys"):
@@ -274,11 +275,6 @@ def update_user(username):
                     key_id = max(list(map(lambda key: key["keyid"], sshPublicCerts))) + 1
                     app.logger.debug("key_id: " + str(key_id))
 
-#                if ("sshPublicCerts" in user):
-#                    for cert in user.get("sshPublicCerts"):
-#                        sshPublicKeys.append(json.dumps(cert).encode())
-#                mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_SSHPUBLICKEY,sshPublicKeys))
-
             if ("sshPublicCerts" in req):
                 sshca = SSHCA()
                 principal_list = user.get("principal")
@@ -290,14 +286,14 @@ def update_user(username):
                         sshPublicCerts = list(filter(lambda key: key["keyid"] != sshPublicCert["keyid"], sshPublicCerts))
                         app.logger.debug("Remaining certs: " + json.dumps(sshPublicCerts))
                     else:
-                        hostGroups = sshPublicCert.get("hostGroups")
+                        hostGroups = list(map(lambda hostGroup: hostGroup.lower(), sshPublicCert.get("hostGroups")))  
                         if (set(hostGroups).issubset(set(memberOfs))):
                             # Create a new key
                             sshPublicCert['keyid'] = key_id
                             sshPublicCert['keytype'] = keytype
                             sshPublicCert['dateExpire'] = date_expire
                             key = sshPublicCert.get("key")
-                            cert = sshca.sign_user_key(userkey=key, duration=date_expire, owner=username, principal_list=principal)
+                            cert = sshca.sign_user_key(userkey=key, duration=ssh_duration, owner=username, principal_list=principal)
                             sshPublicCert["cert"] = cert
                             key_id += 1
     #                    sshPublicKeys.append(json.dumps(sshPublicKey).encode())

@@ -102,7 +102,7 @@ def get_authprinc():
 
     users = []
     users = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(|(' + LDAP_ATTR_CN + '=' + username + ')(' + LDAP_ATTR_PRINCIPAL + '=' + username + ')))')
-    tnow = datetime.now()
+    tnow = datetime.utcnow()
 
     for user in users:
         return_groups = isUserAuthorized(con, user, host)
@@ -162,7 +162,7 @@ def get_hostcert():
     host = {}
     hosts = []
     hosts = searchHosts(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + hostname + '))')
-    tnow = datetime.now()
+    tnow = datetime.utcnow()
 
     if (len(hosts) > 0):
         host = hosts.pop()
@@ -259,7 +259,7 @@ def get_usercert():
     user = {}
     users = []
     users = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + username + '))')
-    tnow = datetime.now()
+    tnow = datetime.utcnow()
 
     if (len(users) > 0):
         user = users.pop()
