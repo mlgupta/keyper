@@ -19,7 +19,7 @@ import logging
 from datetime import datetime as dt
 from flask import current_app as app
 from flask import request
-from . import users, hosts, groups, auth
+from . import users, hosts, groups, auth, upgrade
 from ..resources import errors
 
 @admin.after_request

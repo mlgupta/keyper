@@ -149,7 +149,7 @@ def get_hostcert():
         raise KeyperError(errors["SchemaValidationError"].get("msg"), errors["SchemaValidationError"].get("status"))
 
     hostname = request.values.get('hostname')
-    keyid = int(request.values.get('keyid'))
+    keyid = request.values.get('keyid')
     fingerprint = request.values.get('fingerprint')
 
     app.logger.debug("hostname: " + hostname)
@@ -188,7 +188,7 @@ def get_hostcert():
 
         if (dateExpire > tnow):
             app.logger.debug("Cert is valid")
-            if (((keyid is None) or (keyid == keyID)) and ((fingerprint is None) or (fingerprint == keyFP))):
+            if (((keyid is None) or (int(keyid) == keyID)) and ((fingerprint is None) or (fingerprint == keyFP))):
                 result = result + cert + "\n"
             else:
                 app.logger.debug("Fingerprints or keyid don't match. keyID/fingerprint: " + str(keyID) + "/" + keyFP)
@@ -246,7 +246,7 @@ def get_usercert():
         raise KeyperError(errors["SchemaValidationError"].get("msg"), errors["SchemaValidationError"].get("status"))
 
     username = request.values.get('username')
-    keyid = int(request.values.get('keyid'))
+    keyid = request.values.get('keyid')
     fingerprint = request.values.get('fingerprint')
 
     app.logger.debug("username/keyid/fingerprint: " + username + "/" + str(keyid) + "/" + str(fingerprint))
@@ -285,7 +285,7 @@ def get_usercert():
 
         if (dateExpire > tnow):
             app.logger.debug("Cert is valid")
-            if (((keyid is None) or (keyid == keyID)) and ((fingerprint is None) or (fingerprint == keyFP))):
+            if (((keyid is None) or (int(keyid) == keyID)) and ((fingerprint is None) or (fingerprint == keyFP))):
                 result = result + cert + "\n"
             else:
                 app.logger.debug("Fingerprints or keyid don't match. keyID/fingerprint: " + str(keyID) + "/" + keyFP)

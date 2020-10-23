@@ -27,6 +27,7 @@ LDAP_ATTR_OWNER = "owner"
 LDAP_ATTR_DESCRIPTION = "description"
 LDAP_ATTR_OPTION = "info"
 LDAP_ATTR_PRINCIPAL = "pseudonym"
+LDAP_ATTR_DESCRIPTION = "description"
 
 LDAP_ATTR_OBJECTCLASS = "objectClass"
 

@@ -18,6 +18,8 @@ class Config(object):
     DEBUG = False
     TESTING = False
 
+    KEYPER_VERSION = "0.1.8"
+    
     LDAP_HOST = "localhost"
     LDAP_PORT = "389"
     LDAP_DOMAIN = environ.get("LDAP_DOMAIN", "keyper.example.org")
