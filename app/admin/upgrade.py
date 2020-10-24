@@ -19,6 +19,7 @@ from flask import request, jsonify
 from flask import current_app as app
 from flask_jwt_extended import create_access_token, create_refresh_token, get_raw_jwt, jwt_required
 from flask_jwt_extended import jwt_refresh_token_required, get_jwt_identity, get_jwt_claims
+from datetime import datetime
 from . import admin
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
@@ -158,6 +159,9 @@ def upgrade_to_0_1_8(con):
             mod_list = []
             mod_list.append((ldap.MOD_REPLACE,LDAP_ATTR_OBJECTCLASS,LDAP_OBJECTCLASS_USER))
 
+            if ("cn=admin" in dn.lower()):
+                mod_list.append((ldap.MOD_ADD,LDAP_ATTR_PWDATTRIBUTE,["userPassword".encode()]))
+
             sshPublicKeys = []
             keyid = 0
             keytype = 0
@@ -170,6 +174,12 @@ def upgrade_to_0_1_8(con):
                         sshPublicKey["keyid"] = keyid
                     if not ("keytype" in sshPublicKey):
                         sshPublicKey["keytype"] = keytype
+                    if ("dateExpire" in sshPublicKey):
+                        dd = sshPublicKey.get("dateExpire")
+                        dateExpire = datetime.strptime(dd,"%Y%m%d")
+                        dd = dateExpire.strftime("%Y%m%d%H%M%S")
+                        sshPublicKey["dateExpire"] = dd
+
                     sshPublicKeys.append(sshPublicKey)
                     keyid += 1
                 if (len(sshPublicKeys) > 0):
