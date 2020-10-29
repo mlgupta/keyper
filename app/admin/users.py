@@ -226,6 +226,7 @@ def update_user(username):
         con = operations.open_ldap_connection()
 
         if ("sshPublicKeys" in req)  or ("sshPublicCerts" in req) or ("accountLocked" in req):
+            sshca = SSHCA()
             user = {}
             user = search_users(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + username + '))').pop()
 
@@ -251,16 +252,20 @@ def update_user(username):
                     if ("keyid" in sshPublicKey):
                         # Delete key
                         sshPublicKeys = list(filter(lambda key: key['keyid'] != sshPublicKey['keyid'], sshPublicKeys))
+                        if (sshca.add_to_krl(key=sshPublicKey['key'])):
+                            app.logger.debug("Key revoked: " + str(sshPublicKey['keyid']))
                     else:
                         # Create a new key
                         hostGroups = list(map(lambda hostGroup: hostGroup.lower(), sshPublicKey.get("hostGroups")))
                         if (set(hostGroups).issubset(set(memberOfs))):
-                            sshPublicKey['keyid'] = key_id
-                            sshPublicKey['keytype'] = keytype
-                            sshPublicKey['dateExpire'] = date_expire
-                            key_id += 1
-    #                    sshPublicKeys.append(json.dumps(sshPublicKey).encode())
-                            sshPublicKeys.append(sshPublicKey)
+                            if not (sshca.is_key_revoked(sshPublicKey["key"])):
+                                sshPublicKey['keyid'] = key_id
+                                sshPublicKey['keytype'] = keytype
+                                sshPublicKey['dateExpire'] = date_expire
+                                key_id += 1
+                                sshPublicKeys.append(sshPublicKey)
+                            else:
+                                raise KeyperError(errors["SSHPublicKeyRevokedError"].get("msg"), errors["SSHPublicKeyRevokedError"].get("status"))
                         else:
                             raise KeyperError(errors["UnauthorizedAccessError"].get("msg"), errors["UnauthorizedAccessError"].get("status"))
 
@@ -276,7 +281,6 @@ def update_user(username):
                     app.logger.debug("key_id: " + str(key_id))
 
             if ("sshPublicCerts" in req):
-                sshca = SSHCA()
                 principal_list = user.get("principal")
                 principal  = ','.join(principal_list)
 
@@ -285,6 +289,8 @@ def update_user(username):
                         # Delete Cert
                         sshPublicCerts = list(filter(lambda key: key["keyid"] != sshPublicCert["keyid"], sshPublicCerts))
                         app.logger.debug("Remaining certs: " + json.dumps(sshPublicCerts))
+                        if (sshca.add_to_krl(key=sshPublicCert['cert'])):
+                            app.logger.debug("User Cert revoked: " + str(sshPublicCert['keyid']))
                     else:
                         hostGroups = list(map(lambda hostGroup: hostGroup.lower(), sshPublicCert.get("hostGroups")))  
                         if (set(hostGroups).issubset(set(memberOfs))):

@@ -71,26 +71,30 @@ errors = {
      },
      "SSHPublicKeyError": {
          "msg": "SSH Public Key Error",
-         "status": 401
+         "status": 403
      },
      "SSHPublicKeyParseError": {
          "msg": "SSH Public Key Parse Error",
-         "status": 401
+         "status": 403
      },
      "SSHPublicKeyInvalidError": {
          "msg": "SSH Public Key Invalid",
-         "status": 401
+         "status": 403
+     },
+     "SSHPublicKeyRevokedError": {
+         "msg": "SSH Public Key in Key Revocation List (KRL).",
+         "status": 403
      },
      "OSError": {
          "msg": "OS Error",
-         "status": 401
+         "status": 403
      },
      "SSHPublicCertError": {
          "msg": "SSH Public Cert Error",
-         "status": 401
+         "status": 403
      },
      "SSHPublicCertNotExistError": {
          "msg": "SSH Public Cert does not exist",
-         "status": 401
+         "status": 403
      }
 }

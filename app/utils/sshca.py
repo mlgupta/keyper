@@ -26,6 +26,7 @@ class SSHCA(object):
     ''' SSHCA Class '''
     ca_host_key = ''
     ca_user_key = ''
+    ca_krl_file = ''
     ca_tmp_work_dir = ''
     ca_tmp_work_delete_flag = True
 
@@ -34,6 +35,7 @@ class SSHCA(object):
         self.ca_dir = app.config["SSH_CA_DIR"]
         self.ca_host_key = self.ca_dir + "/" + app.config["SSH_CA_HOST_KEY"]
         self.ca_user_key = self.ca_dir + "/" + app.config["SSH_CA_USER_KEY"]
+        self.ca_krl_file = self.ca_dir + "/" + app.config["SSH_CA_KRL_FILE"]
         self.ca_tmp_work_dir = self.ca_dir + "/" + app.config["SSH_CA_TMP_WORK_DIR"]
         self.ca_tmp_work_delete_flag = app.config["SSH_CA_TMP_DELETE_FLAG"]
         app.logger.debug("Exit")
@@ -42,7 +44,7 @@ class SSHCA(object):
         ''' Sign User Key using User CA Key '''
         app.logger.debug("Enter")
 
-        serial = random.getrandbits(64)
+        serial = datetime.utcnow().strftime("%Y%m%d%H%M%S") + str(random.getrandbits(16))
         signed_key = ''
         cert_file_full_path = ''
 
@@ -89,7 +91,7 @@ class SSHCA(object):
         ''' Sign Host Key using Host CA Key '''
         app.logger.debug("Enter")
 
-        serial = random.getrandbits(64)
+        serial = datetime.utcnow().strftime("%Y%m%d%H%M%S") + str(random.getrandbits(16))
         signed_key = ''
         cert_file_full_path = ''
 
@@ -133,3 +135,73 @@ class SSHCA(object):
         app.logger.debug("Exit")
         return signed_key
 
+    def add_to_krl(self, key):
+        ''' Adds Key/Certificate to the Key Revocation List (KRL) '''
+        app.logger.debug("Enter")
+
+        try:
+            with NamedTemporaryFile(mode='w+t',  dir=self.ca_tmp_work_dir, delete=self.ca_tmp_work_delete_flag, suffix='.pub') as key_file:
+                app.logger.debug("Key: " + key)
+                key_file.write(key)
+                key_file.flush()
+
+                key_file_full_path = key_file.name
+                app.logger.debug("Key File: " + key_file_full_path)
+
+                subprocess.call([
+                    'ssh-keygen',
+                    '-k',
+                    '-u',
+                    '-f', '{}'.format(self.ca_krl_file),
+                    '-q',
+                    key_file_full_path])
+                
+                key_file.close()
+
+        except subprocess.SubprocessError as e:
+            app.logger.error("ssh-keygen error: " + str(e))
+            raise KeyperError(errors["SSHPublicKeyError"].get("msg"), errors["SSHPublicKeyError"].get("status"))
+        except OSError as e:
+            app.logger.error("OS error: " + str(e))
+            raise KeyperError(errors["OSError"].get("msg"), errors["OSError"].get("status"))
+
+        app.logger.debug("Exit")
+        return True
+
+    def is_key_revoked(self, key):
+        ''' Checks if key in KRL '''
+        app.logger.debug("Enter")
+
+        rc = True
+
+        try:
+            with NamedTemporaryFile(mode='w+t',  dir=self.ca_tmp_work_dir, delete=self.ca_tmp_work_delete_flag, suffix='.pub') as key_file:
+                app.logger.debug("Key: " + key)
+                key_file.write(key)
+                key_file.flush()
+
+                key_file_full_path = key_file.name
+                app.logger.debug("Key File: " + key_file_full_path)
+
+                result = subprocess.run([
+                    'ssh-keygen',
+                    '-Q',
+                    '-f', '{}'.format(self.ca_krl_file),
+                    key_file_full_path], capture_output=True, text=True)
+                
+                if ("REVOKED" in result.stdout):
+                    rc = True
+                else:
+                    rc = False
+                
+                key_file.close()
+
+        except subprocess.SubprocessError as e:
+            app.logger.error("ssh-keygen error: " + str(e))
+            raise KeyperError(errors["SSHPublicKeyError"].get("msg"), errors["SSHPublicKeyError"].get("status"))
+        except OSError as e:
+            app.logger.error("OS error: " + str(e))
+            raise KeyperError(errors["OSError"].get("msg"), errors["OSError"].get("status"))
+
+        app.logger.debug("Exit")
+        return rc

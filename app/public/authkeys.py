@@ -14,7 +14,7 @@
 import sys
 import json
 import ldap
-from flask import request, Response
+from flask import request, Response, send_from_directory
 from flask import current_app as app
 from marshmallow import fields, Schema
 from marshmallow.validate import Length
@@ -22,6 +22,7 @@ from datetime import datetime
 from . import public
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
+from ..utils.sshca import SSHCA
 from ..admin.users import search_users, cn_from_dn
 from ..admin.hosts import searchHosts
 from ldapDefn import *
@@ -45,11 +46,21 @@ def get_authkeys():
     username = request.values.get('username')
     host = request.values.get('host')
     fingerprint = request.values.get('fingerprint')
+    key = request.values.get('key')
 
     app.logger.debug("username/host: " + username + "/" + host)
 
+    sshca = SSHCA()
+
     sshPublicKeys = []
     result = ""
+
+    if (key is None):
+        app.logger.debug("Key is None")
+    else:
+        if (sshca.is_key_revoked(key.replace('#',' ',1))):
+            app.logger.info("Key in KRL")
+            return Response(result, mimetype='text/plain')
 
     con = operations.open_ldap_connection()
 
@@ -66,8 +77,6 @@ def get_authkeys():
         else:
             app.logger.debug("User not allowed to access host: " + user[LDAP_ATTR_CN] + "/" + host)
 
-#    for sshPublicKey in sshPublicKeys:
-#        result = sshPublicKey + "\n"
     result = '\n'.join(sshPublicKeys)
 
     operations.close_ldap_connection(con)
@@ -92,11 +101,21 @@ def get_authprinc():
     username = request.values.get('username')
     host = request.values.get('host')
     fingerprint = request.values.get('fingerprint')
+    cert = request.values.get('cert')
 
     app.logger.debug("username/host/fingerprint: " + username + "/" + host + "/" + fingerprint)
 
     sshPublicCerts = []
     result = ""
+
+    sshca = SSHCA()
+
+    if (cert is None):
+        app.logger.debug("Cert is None")
+    else:
+        if (sshca.is_key_revoked(cert.replace('#',' ',1))):
+            app.logger.info("Cert in KRL")
+            return Response(result, mimetype='text/plain')
 
     con = operations.open_ldap_connection()
 
@@ -231,6 +250,17 @@ def get_userca():
     
     app.logger.debug("Exit")
     return Response(ca_key, mimetype='text/plain')
+
+@public.route('/cakrl', methods=['GET', 'POST'])
+def get_cakrl():
+    ''' Get KRL File '''
+    app.logger.debug("Enter")
+
+    try:
+        return send_from_directory(directory=app.config["SSH_CA_DIR"], filename=app.config["SSH_CA_KRL_FILE"], as_attachment=True)
+    except FileNotFoundError:
+        app.logger.error("KRL FIle Not Found Exception")
+        raise KeyperError("KRL File Not Found Exception",404)
 
 @public.route('/usercert', methods=['GET'])
 def get_usercert():
@@ -397,17 +427,19 @@ class AuthKeySchema(Schema):
     username = fields.Str(required=True, validate=Length(max=100))
     host = fields.Str(required=True, validate=Length(max=100))
     fingerprint = fields.Str(required=False, validate=Length(max=100))
+    key = fields.Str(required=False, validate=Length(max=5000))
 
     class Meta:
-        fields = ("username", "host", "fingerprint")
+        fields = ("username", "host", "fingerprint", "key")
 
 class AuthPrincSchema(Schema):
     username = fields.Str(required=True, validate=Length(max=100))
     host = fields.Str(required=True, validate=Length(max=100))
     fingerprint = fields.Str(required=True, validate=Length(max=100))
+    cert = fields.Str(required=False, validate=Length(max=5000))
 
     class Meta:
-        fields = ("username", "host", "fingerprint")
+        fields = ("username", "host", "fingerprint", "cert")
 
 class HostCertSchema(Schema):
     hostname = fields.Str(required=True, validate=Length(max=100))

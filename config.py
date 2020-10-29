@@ -45,6 +45,7 @@ class Config(object):
     SSH_CA_DIR = environ.get("SSH_CA_DIR", "/etc/sshca")
     SSH_CA_HOST_KEY = environ.get("SSH_CA_HOST_KEY", "ca_host_key")
     SSH_CA_USER_KEY = environ.get("SSH_CA_USER_KEY", "ca_user_key")
+    SSH_CA_KRL_FILE = environ.get("SSH_CA_KRL_FILE", "ca_krl")
     SSH_CA_TMP_WORK_DIR = environ.get("SSH_CA_TMP_WORK_DIR", "tmp")
     SSH_CA_TMP_DELETE_FLAG = True
 
