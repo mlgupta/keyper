@@ -251,8 +251,8 @@ def get_userca():
     app.logger.debug("Exit")
     return Response(ca_key, mimetype='text/plain')
 
-@public.route('/cakrl', methods=['GET', 'POST'])
-def get_cakrl():
+@public.route('/krlca', methods=['GET', 'POST'])
+def get_krlca():
     ''' Get KRL File '''
     app.logger.debug("Enter")
 
