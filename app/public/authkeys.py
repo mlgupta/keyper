@@ -101,7 +101,7 @@ def get_authprinc():
     username = request.values.get('username')
     host = request.values.get('host')
     fingerprint = request.values.get('fingerprint')
-    cert_serial = request.values.get('serial')
+    cert_serial = int(request.values.get('serial'))
 
     app.logger.debug("username/host/fingerprint/serial: " + username + "/" + host + "/" + fingerprint + "/" + str(cert_serial))
 
