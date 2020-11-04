@@ -431,10 +431,10 @@ class AuthPrincSchema(Schema):
     username = fields.Str(required=True, validate=Length(max=100))
     host = fields.Str(required=True, validate=Length(max=100))
     fingerprint = fields.Str(required=True, validate=Length(max=100))
-    cert_serial = fields.Int(required=True)
+    serial = fields.Int(required=True)
 
     class Meta:
-        fields = ("username", "host", "fingerprint", "cert_serial")
+        fields = ("username", "host", "fingerprint", "serial")
 
 class HostCertSchema(Schema):
     hostname = fields.Str(required=True, validate=Length(max=100))
