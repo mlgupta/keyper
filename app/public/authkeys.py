@@ -23,6 +23,7 @@ from . import public
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
 from ..utils.sshca import SSHCA
+from ..utils.sshkrl import SSHKRL
 from ..admin.users import search_users, cn_from_dn
 from ..admin.hosts import searchHosts
 from ldapDefn import *
@@ -227,6 +228,8 @@ def get_hostca():
     ssh_ca_host_public_key = app.config["SSH_CA_DIR"] + "/" + app.config["SSH_CA_HOST_KEY"] + ".pub"
 
     ca_key = ""
+
+    krl = SSHKRL()
 
     with open(ssh_ca_host_public_key, 'r') as ca_file:
         ca_key = ca_file.read()

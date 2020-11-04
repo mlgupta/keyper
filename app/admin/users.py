@@ -252,7 +252,7 @@ def update_user(username):
                     if ("keyid" in sshPublicKey):
                         # Delete key
                         sshPublicKeys = list(filter(lambda key: key['keyid'] != sshPublicKey['keyid'], sshPublicKeys))
-                        if (sshca.add_to_krl(key=sshPublicKey['key'])):
+                        if (sshca.add_to_krl_hash(hash=sshPublicKey['fingerprint'])):
                             app.logger.debug("Key revoked: " + str(sshPublicKey['keyid']))
                     else:
                         # Create a new key
@@ -289,7 +289,7 @@ def update_user(username):
                         # Delete Cert
                         sshPublicCerts = list(filter(lambda key: key["keyid"] != sshPublicCert["keyid"], sshPublicCerts))
                         app.logger.debug("Remaining certs: " + json.dumps(sshPublicCerts))
-                        if (sshca.add_to_krl(key=sshPublicCert['cert'])):
+                        if (sshca.add_to_krl_cert(cert=sshPublicCert['cert'])):
                             app.logger.debug("User Cert revoked: " + str(sshPublicCert['keyid']))
                     else:
                         hostGroups = list(map(lambda hostGroup: hostGroup.lower(), sshPublicCert.get("hostGroups")))  

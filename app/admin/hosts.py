@@ -231,7 +231,7 @@ def update_host(hostname):
                 if ("keyid" in sshPublicCert):
                     # Delete a cert
                     sshPublicCerts = list(filter(lambda key: key['keyid'] != sshPublicCert['keyid'], sshPublicCerts))
-                    if (sshca.add_to_krl(key=sshPublicCert['cert'])):
+                    if (sshca.add_to_krl_cert(cert=sshPublicCert['cert'])):
                         app.logger.debug("Host Cert revoked: " + str(sshPublicCert['keyid']))
                 else: 
                     # Create a cert  
