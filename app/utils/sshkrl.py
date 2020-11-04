@@ -11,7 +11,7 @@
 #                                                                           #
 #############################################################################
 import struct
-import json
+import base64
 from flask import current_app as app
 from ..resources.errors import KeyperError, errors
 
@@ -181,6 +181,7 @@ class SSHKRL(object):
                                 raise KeyperError(errors["KRLParseError"].get("msg"), errors["KRLParseError"].get("status"))
 
                             self.krl["krl_key_hash"].append(section_data[section_ptr:section_ptr+string_size])
+                            app.logger.debug("Key Hash: " + section_data[section_ptr:section_ptr+string_size].hex())
                             section_ptr += string_size
                         app.logger.debug("KRL Key Hash Size: " + str(len(self.krl["krl_key_hash"])))
         except OSError as e:
@@ -188,3 +189,47 @@ class SSHKRL(object):
             raise KeyperError(errors["OSError"].get("msg"), errors["OSError"].get("status"))
 
         app.logger.debug("Exit")
+
+    def is_key_revoked(self, key_hash):
+        ''' Checks if key hash in KRL '''
+        app.logger.debug("Enter")
+
+        rc = False
+
+        try:
+            app.logger.debug("key_hash: " + key_hash)
+            key_hash_split = key_hash.split(":")[1]
+            app.logger.debug("key_hash split: " + key_hash_split)
+
+            missing_padding = len(key_hash_split) + 4 - (len(key_hash_split) % 4) 
+            app.logger.debug("missing padding: " + str(missing_padding))
+            key_hash_split = key_hash_split.ljust(missing_padding, '=')
+            app.logger.debug("key_hash_split:" + key_hash_split)
+            
+            decoded_hash = base64.b64decode(key_hash_split)
+            if (decoded_hash in self.krl["krl_key_hash"]):
+                rc = True
+        except OSError as e:
+            app.logger.error("OS error: " + str(e))
+            raise KeyperError(errors["OSError"].get("msg"), errors["OSError"].get("status"))
+
+        app.logger.debug("Exit")
+        return rc
+
+    def is_cert_revoked(self, cert_serial):
+        ''' Checks if cert serial in KRL '''
+        app.logger.debug("Enter")
+
+        rc = False
+
+        try:
+            for krl_cert in self.krl["krl_certs"]:
+                if (cert_serial in krl_cert["cert_serial_list"]):
+                    rc = True
+                    break
+        except OSError as e:
+            app.logger.error("OS error: " + str(e))
+            raise KeyperError(errors["OSError"].get("msg"), errors["OSError"].get("status"))
+
+        app.logger.debug("Exit")
+        return rc

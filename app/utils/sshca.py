@@ -168,14 +168,14 @@ class SSHCA(object):
         app.logger.debug("Exit")
         return True
 
-    def add_to_krl_hash(self, hash):
+    def add_to_krl_hash(self, key_hash):
         ''' Adds Key/Certificate to the Key Revocation List (KRL) '''
         app.logger.debug("Enter")
 
         try:
             with NamedTemporaryFile(mode='w+t',  dir=self.ca_tmp_work_dir, delete=self.ca_tmp_work_delete_flag, suffix='.pub') as key_file:
-                app.logger.debug("Hash: " + hash)
-                key_file.write("hash: " + hash)
+                app.logger.debug("Hash: " + key_hash)
+                key_file.write("hash: " + key_hash)
                 key_file.flush()
 
                 key_file_full_path = key_file.name
