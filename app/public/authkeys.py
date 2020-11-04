@@ -59,9 +59,9 @@ def get_authkeys():
             app.logger.debug("Invalid fingerprint")
             return Response(result, mimetype='text/plain')
 
-    if (sshkrl.is_key_revoked(fingerprint)):
-        app.logger.info("Key in KRL")
-        return Response(result, mimetype='text/plain')
+        if (sshkrl.is_key_revoked(fingerprint)):
+            app.logger.info("Key in KRL")
+            return Response(result, mimetype='text/plain')
 
     con = operations.open_ldap_connection()
 
