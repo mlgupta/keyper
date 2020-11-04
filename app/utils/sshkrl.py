@@ -227,6 +227,7 @@ class SSHKRL(object):
             app.logger.debug("cert_serial: " + str(cert_serial))
             if ("krl_certs" in self.krl):
                 for krl_cert in self.krl["krl_certs"]:
+                    app.logger.debug("Revoked serial list: " + str(krl_cert["cert_serial_list"]))
                     if (cert_serial in krl_cert["cert_serial_list"]):
                         rc = True
                         break
