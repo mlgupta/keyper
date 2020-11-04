@@ -60,7 +60,7 @@ def get_authkeys():
             return Response(result, mimetype='text/plain')
 
         if (sshkrl.is_key_revoked(fingerprint)):
-            app.logger.info("Key in KRL")
+            app.logger.info("The Key has been Revoked")
             return Response(result, mimetype='text/plain')
 
     con = operations.open_ldap_connection()
@@ -111,7 +111,7 @@ def get_authprinc():
     sshkrl = SSHKRL()
 
     if (sshkrl.is_cert_revoked(cert_serial)):
-        app.logger.info("Cert in KRL")
+        app.logger.info("The Certificate has been Revoked.")
         return Response(result, mimetype='text/plain')
 
     con = operations.open_ldap_connection()

@@ -207,8 +207,9 @@ class SSHKRL(object):
             app.logger.debug("key_hash_split:" + key_hash_split)
             
             decoded_hash = base64.b64decode(key_hash_split)
-            if (decoded_hash in self.krl["krl_key_hash"]):
-                rc = True
+            if ("krl_key_hash" in self.krl):
+                if (decoded_hash in self.krl["krl_key_hash"]):
+                    rc = True
         except OSError as e:
             app.logger.error("OS error: " + str(e))
             raise KeyperError(errors["OSError"].get("msg"), errors["OSError"].get("status"))
@@ -223,10 +224,12 @@ class SSHKRL(object):
         rc = False
 
         try:
-            for krl_cert in self.krl["krl_certs"]:
-                if (cert_serial in krl_cert["cert_serial_list"]):
-                    rc = True
-                    break
+            app.logger.debug("cert_serial: " + str(cert_serial))
+            if ("krl_certs" in self.krl):
+                for krl_cert in self.krl["krl_certs"]:
+                    if (cert_serial in krl_cert["cert_serial_list"]):
+                        rc = True
+                        break
         except OSError as e:
             app.logger.error("OS error: " + str(e))
             raise KeyperError(errors["OSError"].get("msg"), errors["OSError"].get("status"))
