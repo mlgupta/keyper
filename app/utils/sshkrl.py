@@ -47,7 +47,7 @@ class SSHKRL(object):
                 app.logger.debug("KRL File Size: " + str(self.krl_buf_len))
 
                 # Parse headers
-                if (self.krl_buf_len <= krl_buf_ptr + 48):
+                if (self.krl_buf_len < krl_buf_ptr + 44):
                     raise KeyperError(errors["KRLParseError"].get("msg"), errors["KRLParseError"].get("status"))
 
                 self.krl["krl_sig"] = krlbuf[krl_buf_ptr:8]
