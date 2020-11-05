@@ -26,6 +26,7 @@ from . import admin
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
 from ..utils.sshca import SSHCA
+from ..utils.sshkrl import SSHKRL
 from ..utils.extensions import requires_keyper_admin
 from ldapDefn import *
 
@@ -252,13 +253,14 @@ def update_user(username):
                     if ("keyid" in sshPublicKey):
                         # Delete key
                         sshPublicKeys = list(filter(lambda key: key['keyid'] != sshPublicKey['keyid'], sshPublicKeys))
-                        if (sshca.add_to_krl(key=sshPublicKey['key'])):
+                        if (sshca.add_to_krl_hash(key_hash=sshPublicKey['fingerprint'])):
                             app.logger.debug("Key revoked: " + str(sshPublicKey['keyid']))
                     else:
                         # Create a new key
                         hostGroups = list(map(lambda hostGroup: hostGroup.lower(), sshPublicKey.get("hostGroups")))
                         if (set(hostGroups).issubset(set(memberOfs))):
-                            if not (sshca.is_key_revoked(sshPublicKey["key"])):
+                            sshkrl = SSHKRL()
+                            if not (sshkrl.is_key_revoked(sshPublicKey["fingerprint"])):
                                 sshPublicKey['keyid'] = key_id
                                 sshPublicKey['keytype'] = keytype
                                 sshPublicKey['dateExpire'] = date_expire
@@ -289,7 +291,7 @@ def update_user(username):
                         # Delete Cert
                         sshPublicCerts = list(filter(lambda key: key["keyid"] != sshPublicCert["keyid"], sshPublicCerts))
                         app.logger.debug("Remaining certs: " + json.dumps(sshPublicCerts))
-                        if (sshca.add_to_krl(key=sshPublicCert['cert'])):
+                        if (sshca.add_to_krl_cert(cert=sshPublicCert['cert'])):
                             app.logger.debug("User Cert revoked: " + str(sshPublicCert['keyid']))
                     else:
                         hostGroups = list(map(lambda hostGroup: hostGroup.lower(), sshPublicCert.get("hostGroups")))  

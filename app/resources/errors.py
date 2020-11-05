@@ -96,5 +96,9 @@ errors = {
      "SSHPublicCertNotExistError": {
          "msg": "SSH Public Cert does not exist",
          "status": 403
+     },
+     "KRLParseError": {
+         "msg": "KRL Parse Error",
+         "status": 403
      }
 }

@@ -135,14 +135,47 @@ class SSHCA(object):
         app.logger.debug("Exit")
         return signed_key
 
-    def add_to_krl(self, key):
+    def add_to_krl_cert(self, cert):
         ''' Adds Key/Certificate to the Key Revocation List (KRL) '''
         app.logger.debug("Enter")
 
         try:
             with NamedTemporaryFile(mode='w+t',  dir=self.ca_tmp_work_dir, delete=self.ca_tmp_work_delete_flag, suffix='.pub') as key_file:
-                app.logger.debug("Key: " + key)
-                key_file.write(key)
+                app.logger.debug("Cert: " + cert)
+                key_file.write(cert)
+                key_file.flush()
+
+                key_file_full_path = key_file.name
+                app.logger.debug("Key File: " + key_file_full_path)
+
+                subprocess.call([
+                    'ssh-keygen',
+                    '-k',
+                    '-u',
+                    '-f', '{}'.format(self.ca_krl_file),
+                    '-q',
+                    key_file_full_path])
+                
+                key_file.close()
+
+        except subprocess.SubprocessError as e:
+            app.logger.error("ssh-keygen error: " + str(e))
+            raise KeyperError(errors["SSHPublicKeyError"].get("msg"), errors["SSHPublicKeyError"].get("status"))
+        except OSError as e:
+            app.logger.error("OS error: " + str(e))
+            raise KeyperError(errors["OSError"].get("msg"), errors["OSError"].get("status"))
+
+        app.logger.debug("Exit")
+        return True
+
+    def add_to_krl_hash(self, key_hash):
+        ''' Adds Key/Certificate to the Key Revocation List (KRL) '''
+        app.logger.debug("Enter")
+
+        try:
+            with NamedTemporaryFile(mode='w+t',  dir=self.ca_tmp_work_dir, delete=self.ca_tmp_work_delete_flag, suffix='.pub') as key_file:
+                app.logger.debug("Hash: " + key_hash)
+                key_file.write("hash: " + key_hash)
                 key_file.flush()
 
                 key_file_full_path = key_file.name

@@ -23,6 +23,7 @@ from . import public
 from ..resources.errors import KeyperError, errors
 from ..utils import operations
 from ..utils.sshca import SSHCA
+from ..utils.sshkrl import SSHKRL
 from ..admin.users import search_users, cn_from_dn
 from ..admin.hosts import searchHosts
 from ldapDefn import *
@@ -32,7 +33,6 @@ def get_authkeys():
     ''' Get SSH Public Keys '''
     app.logger.debug("Enter")
 
-    #req = request.args
     req = request.values
 
     err = authkey_schema.validate(req)
@@ -41,25 +41,26 @@ def get_authkeys():
         app.logger.error("Errors:" + json.dumps(err))
         raise KeyperError(errors["SchemaValidationError"].get("msg"), errors["SchemaValidationError"].get("status"))
 
-    #username = request.args.get('username')
-    #host = request.args.get('host')
     username = request.values.get('username')
     host = request.values.get('host')
     fingerprint = request.values.get('fingerprint')
-    key = request.values.get('key')
 
     app.logger.debug("username/host: " + username + "/" + host)
 
-    sshca = SSHCA()
+    sshkrl = SSHKRL()
 
     sshPublicKeys = []
     result = ""
 
-    if (key is None):
-        app.logger.debug("Key is None")
+    if (fingerprint is None):
+        app.logger.debug("fingerprint is None")
     else:
-        if (sshca.is_key_revoked(key.replace('#',' ',1))):
-            app.logger.info("Key in KRL")
+        if (":" not in fingerprint):
+            app.logger.debug("Invalid fingerprint")
+            return Response(result, mimetype='text/plain')
+
+        if (sshkrl.is_key_revoked(fingerprint)):
+            app.logger.info("The Key has been Revoked")
             return Response(result, mimetype='text/plain')
 
     con = operations.open_ldap_connection()
@@ -89,7 +90,6 @@ def get_authprinc():
     ''' Get SSH Public Keys '''
     app.logger.debug("Enter")
 
-    #req = request.args
     req = request.values
 
     err = authprinc_schema.validate(req)
@@ -101,21 +101,18 @@ def get_authprinc():
     username = request.values.get('username')
     host = request.values.get('host')
     fingerprint = request.values.get('fingerprint')
-    cert = request.values.get('cert')
+    cert_serial = int(request.values.get('serial'))
 
-    app.logger.debug("username/host/fingerprint: " + username + "/" + host + "/" + fingerprint)
+    app.logger.debug("username/host/fingerprint/serial: " + username + "/" + host + "/" + fingerprint + "/" + str(cert_serial))
 
     sshPublicCerts = []
     result = ""
 
-    sshca = SSHCA()
+    sshkrl = SSHKRL()
 
-    if (cert is None):
-        app.logger.debug("Cert is None")
-    else:
-        if (sshca.is_key_revoked(cert.replace('#',' ',1))):
-            app.logger.info("Cert in KRL")
-            return Response(result, mimetype='text/plain')
+    if (sshkrl.is_cert_revoked(cert_serial)):
+        app.logger.info("The Certificate has been Revoked.")
+        return Response(result, mimetype='text/plain')
 
     con = operations.open_ldap_connection()
 
@@ -138,9 +135,9 @@ def get_authprinc():
                                 result = username + "\n"
                                 break
                         else:
-                            app.logger.debug("Fingerprint does not match")
+                            app.logger.debug("Cert Fingerprint does not match")
                     else:
-                        app.logger.debug("Key expired")
+                        app.logger.debug("Cert expired")
                 if (result != ""):
                     break
             else: 
@@ -158,7 +155,6 @@ def get_hostcert():
     ''' Get Cert for a host '''
     app.logger.debug("Enter")
 
-    #req = request.args
     req = request.values
 
     err = host_cert_schema.validate(req)
@@ -427,19 +423,18 @@ class AuthKeySchema(Schema):
     username = fields.Str(required=True, validate=Length(max=100))
     host = fields.Str(required=True, validate=Length(max=100))
     fingerprint = fields.Str(required=False, validate=Length(max=100))
-    key = fields.Str(required=False, validate=Length(max=5000))
 
     class Meta:
-        fields = ("username", "host", "fingerprint", "key")
+       fields = ("username", "host", "fingerprint")
 
 class AuthPrincSchema(Schema):
     username = fields.Str(required=True, validate=Length(max=100))
     host = fields.Str(required=True, validate=Length(max=100))
     fingerprint = fields.Str(required=True, validate=Length(max=100))
-    cert = fields.Str(required=False, validate=Length(max=5000))
+    serial = fields.Int(required=True)
 
     class Meta:
-        fields = ("username", "host", "fingerprint", "cert")
+        fields = ("username", "host", "fingerprint", "serial")
 
 class HostCertSchema(Schema):
     hostname = fields.Str(required=True, validate=Length(max=100))
