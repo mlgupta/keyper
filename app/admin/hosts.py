@@ -211,7 +211,12 @@ def update_host(hostname):
             sshca = SSHCA()
             hosts = []
             hosts = searchHosts(con,'(&(' + LDAP_ATTR_OBJECTCLASS + '=*)(' + LDAP_ATTR_CN + '=' + hostname + '))')
-            host = hosts[0]
+
+            if(len(hosts) > 0): 
+                host = hosts[0]
+            else:
+                app.logger.error("Object with ID does not exist: " + hostname)
+                raise KeyperError(errors["ObjectNotExistsError"].get("msg"), errors["ObjectNotExistsError"].get("status"))
 
             app.logger.debug("duration: " + host.get("duration"))
             app.logger.debug("durationUnit: " + host.get("durationUnit"))
